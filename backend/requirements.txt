@@ -1,0 +1,53 @@
+# Web framework
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+python-multipart==0.0.9
+
+# Data validation
+pydantic==2.7.1
+pydantic-settings==2.3.0
+
+# Database
+sqlalchemy[asyncio]==2.0.30
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Cache
+redis[asyncio]==5.0.4
+
+# HTTP client
+aiohttp==3.9.5
+httpx==0.27.0
+
+# Feature extraction (Phase 1-4)
+tldextract==5.1.2
+rapidfuzz==3.9.3
+dnspython==2.6.1
+python-whois==0.9.4
+cryptography==42.0.8
+beautifulsoup4==4.12.3
+lxml==5.2.2
+imagehash==4.3.1
+Pillow==10.3.0
+unicodedata2==15.1.0
+
+# ML (Phase 3)
+scikit-learn==1.5.0
+xgboost==2.0.3
+shap==0.45.1
+pandas==2.2.2
+numpy==1.26.4
+joblib==1.4.2
+imbalanced-learn==0.12.3
+
+# Reports (Phase 5)
+jinja2==3.1.4
+weasyprint==62.3
+
+# Rate limiting
+slowapi==0.1.9
+
+# Dev / test
+pytest==8.2.1
+pytest-asyncio==0.23.7
+httpx==0.27.0
