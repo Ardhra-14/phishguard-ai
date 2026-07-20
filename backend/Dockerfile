@@ -12,7 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright Chromium (for visual clone detection in Phase 4)
-RUN playwright install chromium --with-deps
+# RUN playwright install chromium --with-deps
 
 # Copy source
 COPY . .

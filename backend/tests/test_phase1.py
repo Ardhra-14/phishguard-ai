@@ -159,29 +159,62 @@ def test_confusable_char_metadata():
 
 
 # ── pipeline.py ──────────────────────────────────────────────────────────
+#
+# NOTE: as of Phase 2, resolve_dns/lookup_whois/inspect_ssl are real network
+# calls, so pipeline-level tests here patch them to keep this file offline
+# and deterministic (Phase 2's own network-layer tests live in
+# tests/test_phase2.py). The stale "returns 30 keys" / "Phase 2 stubs are
+# None" assumptions from the original Phase 1 rebuild no longer hold now
+# that Phase 2 fills those keys in — updated accordingly below.
 
-async def test_pipeline_returns_30_keys():
-    pipeline = FeaturePipeline()
-    features = await pipeline.extract("https://example.com")
-    assert len(features) == 30
+from unittest.mock import patch, AsyncMock
+
+_FAKE_DNS = {"dns_resolves": True, "dns_a_record_count": 1, "dns_has_aaaa": False,
+             "dns_has_mx": True, "dns_resolved_ips": ["93.184.216.34"]}
+_FAKE_WHOIS = {"whois_found": True, "whois_domain_age_days": 4000,
+               "whois_recently_registered": False, "whois_privacy_protected": False}
+_FAKE_SSL = {"ssl_valid": True, "ssl_self_signed": False, "ssl_issuer": "DigiCert",
+             "ssl_days_until_expiry": 100, "ssl_expired": False}
+
+
+def _patched_pipeline():
+    return patch.multiple(
+        "features.pipeline",
+        resolve_dns=AsyncMock(return_value=_FAKE_DNS),
+        lookup_whois=AsyncMock(return_value=_FAKE_WHOIS),
+        inspect_ssl=AsyncMock(return_value=_FAKE_SSL),
+    )
+
+
+async def test_pipeline_returns_38_keys():
+    """12 URL + 5 brand + 3 TLD + 4 IDN + 4 DNS + 4 WHOIS + 3 SSL
+    + 2 Phase-4 stubs + 1 aggregate score = 38 total keys, up from the
+    original Phase 1 count of 30 now that Phase 2's DNS/WHOIS/SSL groups
+    (11 keys) have replaced the old 3-key None stub."""
+    with _patched_pipeline():
+        pipeline = FeaturePipeline()
+        features = await pipeline.extract("https://example.com")
+    assert len(features) == 38
 
 
 async def test_phishing_scores_higher_than_legit():
     """Fix 3: single import at the top of this file — no duplicate
     'from features.pipeline import FeaturePipeline' inside the test body,
     which previously caused a redefinition error in the async test."""
-    pipeline = FeaturePipeline()
-    phishing_features = await pipeline.extract("https://secure-sbi-login-verify.xyz")
-    legit_features = await pipeline.extract("https://www.onlinesbi.com")
+    with _patched_pipeline():
+        pipeline = FeaturePipeline()
+        phishing_features = await pipeline.extract("https://secure-sbi-login-verify.xyz")
+        legit_features = await pipeline.extract("https://www.onlinesbi.com")
 
     assert phishing_features["aggregate_lexical_risk_score"] > legit_features["aggregate_lexical_risk_score"]
 
 
-async def test_pipeline_phase2_phase4_stubs_are_none():
-    pipeline = FeaturePipeline()
-    features = await pipeline.extract("https://example.com")
-    assert features["dns_resolves"] is None
-    assert features["whois_domain_age_days"] is None
-    assert features["ssl_valid"] is None
+async def test_pipeline_phase2_populated_phase4_still_stubs():
+    with _patched_pipeline():
+        pipeline = FeaturePipeline()
+        features = await pipeline.extract("https://example.com")
+    assert features["dns_resolves"] is True
+    assert features["whois_domain_age_days"] == 4000
+    assert features["ssl_valid"] is True
     assert features["visual_similarity_score"] is None
     assert features["dom_credential_form_detected"] is None
