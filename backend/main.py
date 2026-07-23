@@ -40,11 +40,28 @@ app.add_middleware(
 register_middlewares(app)
 
 # Routers
-app.include_router(scan.router,   prefix="/api/v1", tags=["scan"])
-app.include_router(feed.router,   prefix="/api/v1", tags=["feed"])
+app.include_router(scan.router, prefix="/api/v1", tags=["scan"])
+app.include_router(feed.router, prefix="/api/v1", tags=["feed"])
 app.include_router(report.router, prefix="/api/v1", tags=["report"])
 
 
+# Root endpoint
+@app.get("/", tags=["home"])
+async def root():
+    return {
+        "service": "PhishGuard AI",
+        "status": "Running",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
+# Health endpoint
 @app.get("/health", tags=["health"])
 async def health_check():
-    return {"status": "ok", "version": "1.0.0", "service": "PhishGuard AI"}
+    return {
+        "status": "ok",
+        "version": "1.0.0",
+        "service": "PhishGuard AI"
+    }
