@@ -6,6 +6,15 @@ homograph detection (Phase 1), and DNS/WHOIS/SSL network features (Phase 2)
 into a single flat feature dict consumed by the model in Phase 3. Slots for
 Phase 4 (visual clone detection) are present here as None and get filled in
 once that phase is implemented.
+
+NOTE (Phase 3 prep): whois_registrar, ssl_issuer, and ssl_expired are now
+included below. They were already being computed by whois_lookup.py and
+ssl_inspector.py but were previously dropped when merging into this dict —
+scan.py's ScanResponse.registrar / ScanResponse.ssl_issuer fields read from
+the Predictor's result, and the Predictor can only surface what's in this
+feature dict, so the gap would have silently left those fields None forever.
+registrar/issuer are also useful raw signal for the model itself (certain
+registrars and CAs skew heavily toward abuse).
 """
 import asyncio
 from urllib.parse import urlparse
@@ -77,16 +86,24 @@ class FeaturePipeline:
             "dns_has_aaaa": int(dns_result["dns_has_aaaa"]),
             "dns_has_mx": int(dns_result["dns_has_mx"]),
 
-            # ── WHOIS (4) ─────────────────────────────────────────────
+            # ── WHOIS (5) ─────────────────────────────────────────────
             "whois_domain_age_days": whois_result["whois_domain_age_days"],
+            "whois_registrar": whois_result["whois_registrar"],
             "whois_recently_registered": int(whois_result["whois_recently_registered"]),
             "whois_privacy_protected": int(whois_result["whois_privacy_protected"]),
             "whois_found": int(whois_result["whois_found"]),
 
-            # ── SSL (3) ───────────────────────────────────────────────
+            # ── SSL (5) ───────────────────────────────────────────────
             "ssl_valid": ssl_result["ssl_valid"],
             "ssl_self_signed": int(ssl_result["ssl_self_signed"]),
+            "ssl_issuer": ssl_result["ssl_issuer"],
             "ssl_days_until_expiry": ssl_result["ssl_days_until_expiry"],
+            # ssl_expired is bool | None (None only when there's no cert to
+            # check at all, e.g. nothing listening on 443) — left un-cast
+            # like ssl_days_until_expiry so Phase 3 preprocessing can treat
+            # "no cert present" as its own signal rather than coercing it
+            # into False.
+            "ssl_expired": ssl_result["ssl_expired"],
 
             # ── Phase 4 stubs — visual clone detection ───────────────
             "visual_similarity_score": None,

@@ -29,7 +29,7 @@ async def init_db():
         _db_available = True
         print("✅ DB tables ready")
     except Exception as e:
-        print(f"⚠️  DB not available — running without persistence ({type(e).__name__})")
+        print(f"⚠️ DB not available: {type(e).__name__}: {e}")
 
 
 async def get_db():
