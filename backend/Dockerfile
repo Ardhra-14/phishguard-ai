@@ -1,10 +1,11 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# System deps for Playwright + WeasyPrint
+# System deps for Playwright + WeasyPrint + OCR (Tesseract)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl build-essential libpq-dev \
+    tesseract-ocr libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python deps first (layer cache)
@@ -12,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install Playwright Chromium (for visual clone detection in Phase 4)
-# RUN playwright install chromium --with-deps
+RUN playwright install chromium --with-deps
 
 # Copy source
 COPY . .
