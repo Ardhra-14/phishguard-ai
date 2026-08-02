@@ -35,6 +35,27 @@ Legit (label=0): the Tranco top sites list (tranco-list.eu/top-1m.csv.zip).
     path when the live fetch fails or times out, so the legit class has
     realistic path/subdomain/query variance either way.
 
+    IMPORTANT v2 (fixed after Phase 3.5 SHAP review): the v1 fix above
+    reduced but did not eliminate the problem — path_length in the built
+    dataset still landed at path_length==0 for ~38% of the legit class and
+    path_length<=1 for ~68%. Root-caused via scripts/diagnose_legit_fetch.py:
+    (1) requests carried no User-Agent, so a lot of bot-blocked 4xx/5xx
+    responses were silently accepted as "successful, genuinely bare" fetches
+    since aiohttp doesn't raise on HTTP error statuses; (2) the fallback
+    template list picked the empty-string ("bare") template with flat 1-in-11
+    odds any time it fired, which was more often than intended; (3) 6s
+    timeout under concurrency=30 produced a meaningful amount of transient
+    timeout noise; (4) many Tranco entries are apex domains that only serve
+    on www. and were failing outright. Fixed by: sending a real User-Agent,
+    checking resp.status explicitly, retrying once with backoff before
+    falling back, retrying once against www.{domain} specifically on a
+    connection-level failure, downweighting the empty-path template to ~5%,
+    and lowering default concurrency 30->12. Confirmed via repeated
+    diagnostic runs: effective bare-path rate dropped to ~44%, almost all of
+    which is now genuinely-fetched pages that really do serve identical
+    content at the root (not synthesized artifacts) — see
+    backend/data/phase3_5_path_length_check.md for the investigation.
+
 Usage (run this INSIDE the Docker container, not on the host — it needs
 the same network path Phase 2's WHOIS retry logic was built against):
 
@@ -42,11 +63,11 @@ the same network path Phase 2's WHOIS retry logic was built against):
         --phishing-count 2000 --legit-count 2000 --concurrency 20
 
 Safe to interrupt (Ctrl+C) and re-run — it skips URLs already present in
-the output CSV. NOTE: if you're re-running this after the legit-URL fix
-above, delete the old training_dataset.csv first — the resume logic
-matches on exact URL string, so old bare-domain rows won't be recognized
-as duplicates of the new realistic-path rows and you'll end up with both,
-silently reintroducing the leak into half the legit class.
+the output CSV. NOTE: if you're re-running this after a legit-URL fetch
+logic fix, delete the old training_dataset.csv first — the resume logic
+matches on exact URL string, so old rows won't be recognized as duplicates
+of new rows and you'll end up with both, silently reintroducing whatever
+the fix was meant to remove into half the legit class.
 """
 from __future__ import annotations
 
@@ -72,6 +93,12 @@ from features.pipeline import FeaturePipeline  # noqa: E402
 
 OPENPHISH_MIRROR = "https://github.com/openphish/public_feed.git"
 TRANCO_URL = "https://tranco-list.eu/top-1m.csv.zip"
+
+# Sent on every legit-URL resolution attempt (Phase 3.1 fix v2) — without
+# this, a lot of top-Tranco sites bot-block the request and return a 4xx/5xx
+# that previously got silently accepted as a "successful" bare-domain fetch.
+USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
 
 # The 41 keys FeaturePipeline.extract() returns, in a fixed order, so the
 # CSV has stable columns regardless of dict ordering.
@@ -128,8 +155,13 @@ def fetch_phishing_urls(target_count: int, max_commits: int = 60) -> list[str]:
 # Fallback path templates for domains where the live fetch fails/times out —
 # ensures the legit class still has realistic path/subdomain/query variance
 # instead of a hard zero, even when we can't reach the real site.
+#
+# Phase 3.1 fix v2: the empty-string ("bare") template is now deliberately
+# downweighted rather than picked with flat odds — see _TEMPLATE_WEIGHTS.
+# Some legit visits genuinely ARE the bare domain, so we keep a slice of
+# these, just a smaller one than a flat random.choice() was producing.
 _PATH_TEMPLATES = [
-    "",  # some legit visits ARE the bare domain — keep a slice of these, just not 100%
+    "",
     "/login",
     "/about",
     "/products",
@@ -141,35 +173,66 @@ _PATH_TEMPLATES = [
     "/{slug}/index.html",
     "/api/v1/status",
 ]
+_TEMPLATE_WEIGHTS = [5 if t == "" else 9.5 for t in _PATH_TEMPLATES]
 _SLUG_WORDS = ["update", "pricing", "team", "docs", "signup", "help", "news", "profile"]
 
 
 def _synthesize_path(domain: str) -> str:
-    template = random.choice(_PATH_TEMPLATES)
+    template = random.choices(_PATH_TEMPLATES, weights=_TEMPLATE_WEIGHTS, k=1)[0]
     if "{slug}" in template:
         template = template.replace("{slug}", random.choice(_SLUG_WORDS))
     return f"https://{domain}{template}"
 
 
 async def _resolve_real_url(session: aiohttp.ClientSession, domain: str,
-                             sem: asyncio.Semaphore) -> str:
+                             sem: asyncio.Semaphore, retries: int = 1) -> str:
     """Try to find where this domain actually lands (following redirects).
     Falls back to a synthesized path on any failure so we never emit a
-    bare-domain-only URL just because the network hiccuped."""
+    bare-domain-only URL just because the network hiccuped.
+
+    Phase 3.1 fix v2 (diagnosed via scripts/diagnose_legit_fetch.py):
+      - sends a User-Agent (bare requests were getting bot-blocked, and
+        those blocked responses were previously silently accepted as
+        "genuine" bare-domain URLs since aiohttp doesn't raise on 4xx/5xx)
+      - checks resp.status explicitly; 4xx/5xx now correctly falls back
+        instead of being counted as a real legit URL shape
+      - retries once with a short backoff before giving up (most timeouts
+        were transient, not permanent)
+      - on a connection-level failure (ClientConnectorError) specifically,
+        retries once more against www.{domain} before falling back — many
+        Tranco entries are apex domains that only serve on www.
+    """
     async with sem:
-        try:
-            async with session.get(
-                f"https://{domain}",
-                timeout=aiohttp.ClientTimeout(total=6),
-                allow_redirects=True,
-                max_redirects=5,
-            ) as resp:
-                final_url = str(resp.url)
-                # If it really did resolve to the bare domain with no path,
-                # that's a genuine legit URL shape — keep it as-is.
-                return final_url
-        except Exception:
-            return _synthesize_path(domain)
+        candidates = [domain]
+        for attempt_domain in candidates:
+            for attempt in range(retries + 1):
+                try:
+                    async with session.get(
+                        f"https://{attempt_domain}",
+                        timeout=aiohttp.ClientTimeout(total=10),
+                        allow_redirects=True,
+                        max_redirects=5,
+                        headers={"User-Agent": USER_AGENT},
+                    ) as resp:
+                        if resp.status >= 400:
+                            return _synthesize_path(domain)
+                        # If it really did resolve to the bare domain with no
+                        # path, that's a genuine legit URL shape — keep it.
+                        return str(resp.url)
+                except aiohttp.ClientConnectorError:
+                    if (not attempt_domain.startswith("www.")
+                            and "www." + attempt_domain not in candidates):
+                        candidates.append("www." + attempt_domain)
+                    if attempt < retries:
+                        await asyncio.sleep(0.5)
+                        continue
+                    break  # try next candidate (www.) if one was queued
+                except Exception:
+                    if attempt < retries:
+                        await asyncio.sleep(0.5)
+                        continue
+                    return _synthesize_path(domain)
+        return _synthesize_path(domain)
 
 
 async def _fetch_legit_urls_async(domains: list[str], concurrency: int) -> list[str]:
@@ -186,11 +249,17 @@ async def _fetch_legit_urls_async(domains: list[str], concurrency: int) -> list[
 
 
 def fetch_legit_urls(target_count: int, rank_band: int = 50_000,
-                      concurrency: int = 30) -> list[str]:
+                      concurrency: int = 12) -> list[str]:
     """Download the Tranco top-1M list, sample target_count domains from
     the top `rank_band` ranks, then resolve each to its real landing URL
     (with a synthesized-path fallback) so legit URLs have realistic shape
-    instead of always being the bare domain."""
+    instead of always being the bare domain.
+
+    Phase 3.1 fix v2: default concurrency lowered 30->12 — the higher value
+    was producing a meaningful amount of transient timeout noise under the
+    original 6s timeout (now 10s in _resolve_real_url) with no benefit
+    since Tranco fetches were network-bound, not concurrency-bound.
+    """
     print(f"[legit] downloading Tranco list from {TRANCO_URL} ...")
     with urlopen(TRANCO_URL, timeout=60) as resp:
         raw = resp.read()
