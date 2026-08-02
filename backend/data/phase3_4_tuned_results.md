@@ -2,21 +2,21 @@
 
 Search: 50 iterations, 5-fold stratified CV, scoring=roc_auc
 
-Best CV roc_auc: 0.9952
+Best CV roc_auc: 0.9933
 
 ## Best hyperparameters
 
 ```json
 {
-  "colsample_bytree": 0.610167650697638,
-  "gamma": 0.5394571349665223,
-  "learning_rate": 0.019114463849152934,
-  "max_depth": 8,
+  "colsample_bytree": 0.7043574493366855,
+  "gamma": 0.07652270145192375,
+  "learning_rate": 0.28069652934305006,
+  "max_depth": 9,
   "min_child_weight": 1,
-  "n_estimators": 663,
-  "reg_alpha": 1.1265511439527673,
-  "reg_lambda": 2.9343063024914464,
-  "subsample": 0.6557325817623503
+  "n_estimators": 424,
+  "reg_alpha": 1.3679275387962821,
+  "reg_lambda": 2.655479075364698,
+  "subsample": 0.9775566418243029
 }
 ```
 
@@ -26,25 +26,25 @@ Held-out test set: n=800
 
 | Metric | RF (3.3) | XGB untuned (3.4-1) | XGB tuned (3.4-3) | Delta vs untuned |
 |---|---|---|---|---|
-| accuracy | 0.9712 | 0.9775 | 0.9800 | +0.0025 |
-| precision | 0.9821 | 0.9728 | 0.9824 | +0.0096 |
-| recall | 0.9600 | 0.9825 | 0.9775 | -0.0050 |
-| f1 | 0.9709 | 0.9776 | 0.9799 | +0.0023 |
-| roc_auc | 0.9980 | 0.9985 | 0.9982 | -0.0003 |
+| accuracy | 0.9712 | 0.9775 | 0.9550 | -0.0225 |
+| precision | 0.9821 | 0.9728 | 0.9550 | -0.0178 |
+| recall | 0.9600 | 0.9825 | 0.9550 | -0.0275 |
+| f1 | 0.9709 | 0.9776 | 0.9550 | -0.0226 |
+| roc_auc | 0.9980 | 0.9985 | 0.9896 | -0.0089 |
 
-Confusion matrix (tuned): `[[393, 7], [9, 391]]`
+Confusion matrix (tuned): `[[382, 18], [18, 382]]`
 
 ## Top 10 features by importance (tuned model)
 
 | Feature | Importance |
 |---|---|
-| has_https | 0.171 |
-| entropy | 0.109 |
-| hyphen_count | 0.089 |
-| url_length | 0.068 |
-| whois_domain_age_days | 0.041 |
-| ssl_issuer_missing | 0.040 |
-| ssl_issuer_godaddycom | 0.034 |
-| subdomain_depth | 0.033 |
-| dot_count | 0.027 |
-| whois_domain_age_days_was_missing | 0.024 |
+| has_https | 0.247 |
+| entropy | 0.123 |
+| subdomain_depth | 0.083 |
+| whois_domain_age_days_was_missing | 0.074 |
+| url_length | 0.051 |
+| whois_domain_age_days | 0.049 |
+| dot_count | 0.046 |
+| whois_recently_registered | 0.044 |
+| ssl_issuer_amazon | 0.033 |
+| tld_known | 0.025 |

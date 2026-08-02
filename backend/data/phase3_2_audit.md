@@ -9,11 +9,11 @@ Shape: **4000 rows x 44 columns**
 |:-----------------------------|:--------|-------------:|-----------:|
 | dom_credential_form_detected | float64 |         4000 |     100    |
 | visual_similarity_score      | float64 |         4000 |     100    |
-| whois_registrar              | object  |         2448 |      61.2  |
-| whois_domain_age_days        | float64 |         2397 |      59.92 |
-| ssl_days_until_expiry        | float64 |         1326 |      33.15 |
-| ssl_issuer                   | object  |         1326 |      33.15 |
-| ssl_expired                  | object  |         1152 |      28.8  |
+| whois_registrar              | object  |         1947 |      48.68 |
+| whois_domain_age_days        | float64 |         1897 |      47.42 |
+| ssl_days_until_expiry        | float64 |         1379 |      34.48 |
+| ssl_issuer                   | object  |         1379 |      34.48 |
+| ssl_expired                  | object  |         1077 |      26.92 |
 | url                          | object  |            0 |       0    |
 | dns_has_aaaa                 | int64   |            0 |       0    |
 | idn_confusable_count         | int64   |            0 |       0    |
@@ -63,113 +63,113 @@ These are the columns where missingness reflects real lookup failures (NXDOMAIN,
 
 |                       | dtype   |   null_count |   null_pct |
 |:----------------------|:--------|-------------:|-----------:|
-| whois_registrar       | object  |         2448 |      61.2  |
-| whois_domain_age_days | float64 |         2397 |      59.92 |
-| ssl_days_until_expiry | float64 |         1326 |      33.15 |
-| ssl_issuer            | object  |         1326 |      33.15 |
-| ssl_expired           | object  |         1152 |      28.8  |
+| whois_registrar       | object  |         1947 |      48.68 |
+| whois_domain_age_days | float64 |         1897 |      47.42 |
+| ssl_days_until_expiry | float64 |         1379 |      34.48 |
+| ssl_issuer            | object  |         1379 |      34.48 |
+| ssl_expired           | object  |         1077 |      26.92 |
 
 ## 4. Categorical cardinality (encoding strategy inputs)
 
 ### `tld`
 
-- Unique values (excluding null): **204**
+- Unique values (excluding null): **212**
 - Non-null rows: 4000 / 4000
-- Top 10 values cover: **76.88%** of non-null rows
+- Top 10 values cover: **71.9%** of non-null rows
 
 | value | count | pct of non-null |
 |---|---|---|
-| com | 1366 | 34.15% |
-| dev | 819 | 20.47% |
-| app | 285 | 7.12% |
-| io | 157 | 3.92% |
-| net | 149 | 3.72% |
-| ru | 81 | 2.02% |
-| org | 79 | 1.98% |
-| cc | 56 | 1.4% |
-| de | 46 | 1.15% |
-| cn | 37 | 0.92% |
+| com | 1409 | 35.23% |
+| dev | 398 | 9.95% |
+| app | 321 | 8.03% |
+| io | 218 | 5.45% |
+| net | 162 | 4.05% |
+| org | 111 | 2.77% |
+| ru | 91 | 2.27% |
+| xyz | 65 | 1.62% |
+| cn | 53 | 1.32% |
+| gr | 48 | 1.2% |
 
 ### `whois_registrar`
 
-- Unique values (excluding null): **259**
-- Non-null rows: 1552 / 4000
-- Top 10 values cover: **49.81%** of non-null rows
+- Unique values (excluding null): **312**
+- Non-null rows: 2053 / 4000
+- Top 10 values cover: **44.62%** of non-null rows
 
 | value | count | pct of non-null |
 |---|---|---|
-| GoDaddy.com, LLC | 210 | 13.53% |
-| NameCheap, Inc. | 119 | 7.67% |
-| MarkMonitor, Inc. | 118 | 7.6% |
-| Amazon Registrar, Inc. | 85 | 5.48% |
-| TUCOWS.COM, CO. | 46 | 2.96% |
-| RU-CENTER-RU | 42 | 2.71% |
-| GANDI SAS | 41 | 2.64% |
-| Network Solutions, LLC | 39 | 2.51% |
-| Cloudflare, Inc. | 38 | 2.45% |
-| Gname.com Pte. Ltd. | 35 | 2.26% |
+| GoDaddy.com, LLC | 232 | 11.3% |
+| MarkMonitor, Inc. | 144 | 7.01% |
+| NameCheap, Inc. | 143 | 6.97% |
+| Amazon Registrar, Inc. | 76 | 3.7% |
+| Cloudflare, Inc. | 63 | 3.07% |
+| MarkMonitor Inc. | 62 | 3.02% |
+| Network Solutions, LLC | 52 | 2.53% |
+| Gname.com Pte. Ltd. | 49 | 2.39% |
+| RU-CENTER-RU | 48 | 2.34% |
+| TUCOWS.COM, CO. | 47 | 2.29% |
 
 ### `ssl_issuer`
 
-- Unique values (excluding null): **42**
-- Non-null rows: 2674 / 4000
-- Top 10 values cover: **97.38%** of non-null rows
+- Unique values (excluding null): **48**
+- Non-null rows: 2621 / 4000
+- Top 10 values cover: **96.6%** of non-null rows
 
 | value | count | pct of non-null |
 |---|---|---|
-| Google Trust Services | 1326 | 49.59% |
-| Let's Encrypt | 668 | 24.98% |
-| DigiCert Inc | 216 | 8.08% |
-| Amazon | 157 | 5.87% |
-| GlobalSign nv-sa | 88 | 3.29% |
-| Sectigo Limited | 82 | 3.07% |
-| GoDaddy.com, Inc. | 21 | 0.79% |
-| GoDaddy.com | 20 | 0.75% |
-| DigiCert, Inc. | 17 | 0.64% |
-| Hellenic Academic and Research Institutions CA | 9 | 0.34% |
+| Google Trust Services | 1036 | 39.53% |
+| Let's Encrypt | 843 | 32.16% |
+| DigiCert Inc | 221 | 8.43% |
+| Amazon | 178 | 6.79% |
+| Sectigo Limited | 89 | 3.4% |
+| GlobalSign nv-sa | 88 | 3.36% |
+| Hellenic Academic and Research Institutions CA | 21 | 0.8% |
+| ZeroSSL GmbH | 20 | 0.76% |
+| GoDaddy.com, Inc. | 18 | 0.69% |
+| DigiCert, Inc. | 18 | 0.69% |
 
 ## 5. Numeric column summary
 
 |                              |   count |     mean |      std |     min |      25% |      50% |      75% |       max |
 |:-----------------------------|--------:|---------:|---------:|--------:|---------:|---------:|---------:|----------:|
 | label                        |    4000 |    0.5   |    0.5   |   0     |    0     |    0.5   |    1     |     1     |
-| url_length                   |    4000 |   39.022 |   27.964 |  13     |   24     |   33     |   47     |  1072     |
-| hyphen_count                 |    4000 |    1.028 |    1.591 |   0     |    0     |    0     |    2     |     9     |
-| dot_count                    |    4000 |    1.744 |    0.638 |   1     |    1     |    2     |    2     |     8     |
-| digit_count                  |    4000 |    1.12  |    2.259 |   0     |    0     |    0     |    2     |    28     |
-| entropy                      |    4000 |    3.547 |    0.566 |   1.88  |    3.122 |    3.466 |    3.958 |     4.897 |
-| subdomain_depth              |    4000 |    0.744 |    0.638 |   0     |    0     |    1     |    1     |     7     |
-| has_https                    |    4000 |    0.732 |    0.443 |   0     |    0     |    1     |    1     |     1     |
+| url_length                   |    4000 |   39.276 |   29.898 |  12     |   26     |   34     |   44     |   991     |
+| hyphen_count                 |    4000 |    0.676 |    1.324 |   0     |    0     |    0     |    1     |    10     |
+| dot_count                    |    4000 |    1.744 |    0.703 |   1     |    1     |    2     |    2     |     7     |
+| digit_count                  |    4000 |    1.062 |    2.415 |   0     |    0     |    0     |    1     |    29     |
+| entropy                      |    4000 |    3.454 |    0.51  |   0.755 |    3.122 |    3.432 |    3.796 |     4.914 |
+| subdomain_depth              |    4000 |    0.744 |    0.703 |   0     |    0     |    1     |    1     |     6     |
+| has_https                    |    4000 |    0.8   |    0.4   |   0     |    1     |    1     |    1     |     1     |
 | is_ip_address                |    4000 |    0     |    0     |   0     |    0     |    0     |    0     |     0     |
-| has_at_symbol                |    4000 |    0.001 |    0.035 |   0     |    0     |    0     |    0     |     1     |
-| path_length                  |    4000 |    7.46  |   11.964 |   0     |    1     |    1     |   11     |   132     |
-| query_param_count            |    4000 |    0.06  |    0.397 |   0     |    0     |    0     |    0     |    16     |
-| special_char_count           |    4000 |    0.169 |    1.135 |   0     |    0     |    0     |    0     |    36     |
-| brand_impersonation_score    |    4000 |    0.024 |    0.062 |   0     |    0     |    0     |    0     |     0.583 |
-| brand_matched_count          |    4000 |    0.242 |    0.584 |   0     |    0     |    0     |    0     |     5     |
-| brand_keyword_hit_count      |    4000 |    0.003 |    0.057 |   0     |    0     |    0     |    0     |     1     |
-| brand_typosquat_hit_count    |    4000 |    0.25  |    0.638 |   0     |    0     |    0     |    0     |     7     |
-| brand_has_action_word        |    4000 |    0.022 |    0.147 |   0     |    0     |    0     |    0     |     1     |
-| tld_risk_score               |    4000 |    0.347 |    0.188 |   0.01  |    0.15  |    0.35  |    0.5   |     0.94  |
-| tld_known                    |    4000 |    0.57  |    0.495 |   0     |    0     |    1     |    1     |     1     |
-| idn_is_homograph             |    4000 |    0.001 |    0.032 |   0     |    0     |    0     |    0     |     1     |
+| has_at_symbol                |    4000 |    0.003 |    0.055 |   0     |    0     |    0     |    0     |     1     |
+| path_length                  |    4000 |    7.104 |   12.37  |   0     |    0     |    0     |   11     |   190     |
+| query_param_count            |    4000 |    0.104 |    0.491 |   0     |    0     |    0     |    0     |    12     |
+| special_char_count           |    4000 |    0.272 |    1.454 |   0     |    0     |    0     |    0     |    54     |
+| brand_impersonation_score    |    4000 |    0.026 |    0.064 |   0     |    0     |    0     |    0     |     0.5   |
+| brand_matched_count          |    4000 |    0.265 |    0.622 |   0     |    0     |    0     |    0     |     4     |
+| brand_keyword_hit_count      |    4000 |    0.003 |    0.052 |   0     |    0     |    0     |    0     |     1     |
+| brand_typosquat_hit_count    |    4000 |    0.269 |    0.639 |   0     |    0     |    0     |    0     |     5     |
+| brand_has_action_word        |    4000 |    0.019 |    0.136 |   0     |    0     |    0     |    0     |     1     |
+| tld_risk_score               |    4000 |    0.339 |    0.197 |   0.01  |    0.15  |    0.35  |    0.5   |     0.94  |
+| tld_known                    |    4000 |    0.635 |    0.482 |   0     |    0     |    1     |    1     |     1     |
+| idn_is_homograph             |    4000 |    0.002 |    0.039 |   0     |    0     |    0     |    0     |     1     |
 | idn_confusable_count         |    4000 |    0     |    0     |   0     |    0     |    0     |    0     |     0     |
-| idn_risk_score               |    4000 |    0.001 |    0.019 |   0     |    0     |    0     |    0     |     0.6   |
-| idn_punycode_flag            |    4000 |    0.001 |    0.032 |   0     |    0     |    0     |    0     |     1     |
-| dns_a_record_count           |    4000 |    1.623 |    1.797 |   0     |    1     |    2     |    2     |    40     |
-| dns_has_aaaa                 |    4000 |    0.428 |    0.495 |   0     |    0     |    0     |    1     |     1     |
-| dns_has_mx                   |    4000 |    0.2   |    0.4   |   0     |    0     |    0     |    0     |     1     |
-| whois_domain_age_days        |    1603 | 5592.81  | 3966.78  |   0     | 1954.5   | 5233     | 9291.5   | 15182     |
-| whois_recently_registered    |    4000 |    0.016 |    0.125 |   0     |    0     |    0     |    0     |     1     |
-| whois_privacy_protected      |    4000 |    0.076 |    0.265 |   0     |    0     |    0     |    0     |     1     |
-| whois_found                  |    4000 |    0.413 |    0.492 |   0     |    0     |    0     |    1     |     1     |
+| idn_risk_score               |    4000 |    0.001 |    0.023 |   0     |    0     |    0     |    0     |     0.6   |
+| idn_punycode_flag            |    4000 |    0.002 |    0.039 |   0     |    0     |    0     |    0     |     1     |
+| dns_a_record_count           |    4000 |    1.588 |    1.411 |   0     |    1     |    2     |    2     |    40     |
+| dns_has_aaaa                 |    4000 |    0     |    0     |   0     |    0     |    0     |    0     |     0     |
+| dns_has_mx                   |    4000 |    0.186 |    0.389 |   0     |    0     |    0     |    0     |     1     |
+| whois_domain_age_days        |    2103 | 5153.04  | 3896.53  |   0     | 1458.5   | 4728     | 8504.5   | 14998     |
+| whois_recently_registered    |    4000 |    0.035 |    0.183 |   0     |    0     |    0     |    0     |     1     |
+| whois_privacy_protected      |    4000 |    0.105 |    0.307 |   0     |    0     |    0     |    0     |     1     |
+| whois_found                  |    4000 |    0.542 |    0.498 |   0     |    0     |    1     |    1     |     1     |
 | ssl_self_signed              |    4000 |    0     |    0     |   0     |    0     |    0     |    0     |     0     |
-| ssl_days_until_expiry        |    2674 |   84.022 |   46.259 |   2     |   55     |   80     |   85     |   260     |
+| ssl_days_until_expiry        |    2621 |   80.412 |   50.092 |   2     |   47     |   70     |   86     |   253     |
 | visual_similarity_score      |       0 |  nan     |  nan     | nan     |  nan     |  nan     |  nan     |   nan     |
 | dom_credential_form_detected |       0 |  nan     |  nan     | nan     |  nan     |  nan     |  nan     |   nan     |
-| aggregate_lexical_risk_score |    4000 |    0.185 |    0.067 |   0.056 |    0.116 |    0.207 |    0.237 |     0.459 |
+| aggregate_lexical_risk_score |    4000 |    0.181 |    0.07  |   0.051 |    0.115 |    0.196 |    0.223 |     0.411 |
 
 ## 6. Suspicious value checks
 
 - Label distribution: {1: 2000, 0: 2000} (expected 2000/2000 per handoff).
-- **13** duplicate `url` values found (handoff claims dedup during collection — worth confirming).
+- **8** duplicate `url` values found (handoff claims dedup during collection — worth confirming).

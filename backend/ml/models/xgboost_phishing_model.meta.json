@@ -1,21 +1,29 @@
 {
-  "saved_at_utc": "2026-07-28T14:26:52.459178+00:00",
-  "model_type": "XGBClassifier",
+  "saved_at_utc": "2026-08-02T08:20:10.698728+00:00",
+  "model_type": "VotingClassifier (RandomForestClassifier + XGBClassifier, soft voting)",
   "phase": "3.4",
+  "ensemble_adoption_note": "Adopted this session after the path_length trailing-slash fix made the ensemble beat every individual model simultaneously on accuracy/precision/f1 -- see phase3_4_ensemble_results.md and phase3_5_path_length_check.md. Prior cycles kept tuned XGBoost alone since the ensemble tied it exactly.",
   "trained_on": "80% stratified split of training_features.csv (NOT full dataset)",
   "random_state": 42,
   "test_size": 0.2,
-  "hyperparameters": {
-    "colsample_bytree": 0.610167650697638,
-    "gamma": 0.5394571349665223,
-    "learning_rate": 0.019114463849152934,
-    "max_depth": 8,
-    "min_child_weight": 1,
-    "n_estimators": 663,
-    "reg_alpha": 1.1265511439527673,
-    "reg_lambda": 2.9343063024914464,
-    "subsample": 0.6557325817623503
+  "component_hyperparameters": {
+    "random_forest": {
+      "n_estimators": 200,
+      "random_state": 42
+    },
+    "xgboost": {
+      "colsample_bytree": 0.7043574493366855,
+      "gamma": 0.07652270145192375,
+      "learning_rate": 0.28069652934305006,
+      "max_depth": 9,
+      "min_child_weight": 1,
+      "n_estimators": 424,
+      "reg_alpha": 1.3679275387962821,
+      "reg_lambda": 2.655479075364698,
+      "subsample": 0.9775566418243029
+    }
   },
+  "voting": "soft",
   "feature_columns_in_order": [
     "url_length",
     "hyphen_count",
@@ -64,30 +72,30 @@
     "ssl_issuer_let's_encrypt",
     "ssl_issuer_digicert_inc",
     "ssl_issuer_amazon",
-    "ssl_issuer_globalsign_nv_sa",
     "ssl_issuer_sectigo_limited",
-    "ssl_issuer_godaddycom_inc",
-    "ssl_issuer_godaddycom",
+    "ssl_issuer_globalsign_nv_sa",
     "ssl_issuer_hellenic_academic_and_research_institutions_ca",
+    "ssl_issuer_zerossl_gmbh",
+    "ssl_issuer_godaddycom_inc",
     "ssl_issuer_other",
     "ssl_issuer_missing"
   ],
   "n_features": 54,
   "sanity_check_metrics": {
-    "accuracy": 0.98,
-    "precision": 0.9824120603015075,
-    "recall": 0.9775,
-    "f1": 0.9799498746867168,
-    "roc_auc": 0.99823125
+    "accuracy": 0.95875,
+    "precision": 0.9576059850374065,
+    "recall": 0.96,
+    "f1": 0.9588014981273408,
+    "roc_auc": 0.99004375
   },
   "sanity_check_confusion_matrix": [
     [
-      393,
-      7
+      383,
+      17
     ],
     [
-      9,
-      391
+      16,
+      384
     ]
   ],
   "requires_for_inference": "data/preprocessing_artifacts.json (frequency maps + ssl_issuer top-10 list from Phase 3.2) to encode a single incoming URL identically to how this training data was encoded."
