@@ -1,0 +1,6 @@
+http://localhost:8000/docs
+
+{"url": "https://example.com"}
+
+{"url": "http://localhost:8899/fake_phishing_test.html"}
+

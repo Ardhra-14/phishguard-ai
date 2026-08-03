@@ -170,3 +170,50 @@ def _stub_result(url: str) -> dict:
         "features": {"stub": True},
         "shap": [],
     }
+
+
+# ── Manual screenshot upload endpoint (Phase 4 - Visual Detection) ──────────
+# Accepts a directly uploaded screenshot, for cases with no live URL to visit
+# (e.g. a screenshot forwarded from a phishing email or SMS).
+
+from fastapi import UploadFile, File
+from features.visual.visual_scoring import analyze_screenshot
+
+
+class ImageScanResponse(BaseModel):
+    verdict: str
+    confidence: float
+    score: int
+    reasons: list[str]
+    visual_similarity_score: float | None
+    dom_credential_form_detected: bool
+    closest_brand: str | None
+
+
+@router.post("/scan/image", response_model=ImageScanResponse, summary="Analyse an uploaded screenshot for phishing signals")
+async def scan_image(file: UploadFile = File(...)):
+    """
+    Standalone visual analysis of an uploaded screenshot - independent of
+    the URL-based /scan pipeline. No claimed_domain is available here, so
+    brand-similarity matches are conservatively flagged (see
+    visual_scoring.py docstring for that trade-off).
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+
+    screenshot_bytes = await file.read()
+
+    try:
+        analysis = analyze_screenshot(screenshot_bytes, claimed_domain=None)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not process image: {e}")
+
+    return ImageScanResponse(
+        verdict=analysis["verdict"],
+        confidence=analysis["confidence"],
+        score=analysis["score"],
+        reasons=analysis["reasons"],
+        visual_similarity_score=analysis["visual_similarity_score"],
+        dom_credential_form_detected=analysis["dom_credential_form_detected"],
+        closest_brand=analysis["details"]["brand_similarity"]["closest_brand"],
+    )
