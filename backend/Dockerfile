@@ -4,10 +4,7 @@ WORKDIR /app
 
 # System deps for Playwright + WeasyPrint + OCR (Tesseract)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-<<<<<<< HEAD
     curl build-essential libpq-dev git \
-=======
-    curl build-essential libpq-dev \
     tesseract-ocr libgl1 libglib2.0-0 \
 >>>>>>> feature/visual-detection
     && rm -rf /var/lib/apt/lists/*
