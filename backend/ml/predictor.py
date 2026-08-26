@@ -44,10 +44,16 @@ inline as [reconstruction choice] so it's easy to find and revisit.
 5. registrar/ssl_issuer/closest_brand key names pulled from the features
    dict using best-guess names (whois_registrar, ssl_issuer,
    closest_brand). All three are confirmed real FeaturePipeline output
-   keys. `closest_brand` was fixed in pipeline.py (Phase 3.7 open issue
-   #2): analyze_screenshot() already computed it internally but it never
-   made it out of the /scan/image-only response path into the main /scan
-   route's feature dict - now threaded through.
+   keys. `closest_brand` was threaded through in pipeline.py (Phase 3.7
+   open issue #2) - but ONLY when brand_clone_flagged is True, not
+   whenever analyze_screenshot() returns any argmin match. The first
+   pass of this fix surfaced closest_brand unconditionally and broke
+   immediately in testing: compare_to_brands() always returns the
+   *closest available* reference brand even when the hash distance is
+   nowhere near a real match (google.com "matched" HDFC at distance 28,
+   nowhere close to CLONE_THRESHOLD=12) - gating on the already-computed,
+   already-thresholded brand_clone_flagged fixes this without touching
+   CLONE_THRESHOLD or the reference-brand set at all.
 6. `category` - no known source anywhere in the docs handed off. Stays
    None with a TODO.
 7. SHAP schema flattening - only the RandomForest component's

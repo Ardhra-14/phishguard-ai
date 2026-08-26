@@ -449,7 +449,10 @@ async def test_scan_endpoint_surfaces_closest_brand_from_visual_stage():
          patch("features.pipeline.analyze_screenshot", return_value={
                 "visual_similarity_score": 0.92,
                 "dom_credential_form_detected": True,
-                "details": {"brand_similarity": {"closest_brand": "paypal"}},
+                "details": {
+                    "brand_similarity": {"closest_brand": "paypal"},
+                    "brand_clone_flagged": True,
+                },
             }):
         async with AsyncClient(transport=ASGITransport(app=_get_app()), base_url="http://test") as client:
             response = await client.post(
@@ -459,6 +462,45 @@ async def test_scan_endpoint_surfaces_closest_brand_from_visual_stage():
     assert response.status_code == 200
     data = response.json()
     assert data["closest_brand"] == "paypal"
+
+
+async def test_scan_endpoint_does_not_surface_weak_brand_match():
+    """The bug this fix actually caught: compare_to_brands() always
+    returns the closest available reference brand, even when the hash
+    distance is nowhere near a real match (this is exactly what happened
+    live - google.com "matched" HDFC at hash distance 28, nowhere close
+    to CLONE_THRESHOLD=12). closest_brand must stay None unless
+    brand_clone_flagged actually fired."""
+    with patch("features.pipeline.resolve_dns", new=AsyncMock(return_value={
+                "dns_resolves": True, "dns_a_record_count": 4,
+                "dns_has_aaaa": True, "dns_has_mx": True, "dns_resolved_ips": ["1.2.3.4"],
+            })), \
+         patch("features.pipeline.lookup_whois", new=AsyncMock(return_value={
+                "whois_found": True, "whois_domain_age_days": 5000,
+                "whois_recently_registered": False,
+                "whois_privacy_protected": False, "whois_registrar": "MarkMonitor, Inc.",
+            })), \
+         patch("features.pipeline.inspect_ssl", new=AsyncMock(return_value={
+                "ssl_valid": True, "ssl_self_signed": False,
+                "ssl_issuer": "Google Trust Services", "ssl_days_until_expiry": 90, "ssl_expired": False,
+            })), \
+         patch("features.pipeline.capture_screenshot", new=AsyncMock(return_value={
+                "success": True, "screenshot_bytes": b"fake", "html_content": "<html></html>",
+            })), \
+         patch("features.pipeline.analyze_screenshot", return_value={
+                "visual_similarity_score": 0.125,  # matches the real distance-28 case seen live
+                "dom_credential_form_detected": False,
+                "details": {
+                    "brand_similarity": {"closest_brand": "hdfc"},  # the argmin - present but meaningless
+                    "brand_clone_flagged": False,  # below CLONE_THRESHOLD, correctly not flagged
+                },
+            }):
+        async with AsyncClient(transport=ASGITransport(app=_get_app()), base_url="http://test") as client:
+            response = await client.post("/api/v1/scan", json={"url": "https://www.google.com"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["closest_brand"] is None
 
 
 def _get_app():
