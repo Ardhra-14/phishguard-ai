@@ -43,10 +43,11 @@ inline as [reconstruction choice] so it's easy to find and revisit.
    product decision, not something this file settles.
 5. registrar/ssl_issuer/closest_brand key names pulled from the features
    dict using best-guess names (whois_registrar, ssl_issuer,
-   closest_brand). First two are the real FeaturePipeline output keys.
-   `closest_brand` is NOT currently in FeaturePipeline.extract()'s output
-   (see Phase 3.7 open issue #2) - always None until pipeline.py threads
-   it through from brand_similarity.py.
+   closest_brand). All three are confirmed real FeaturePipeline output
+   keys. `closest_brand` was fixed in pipeline.py (Phase 3.7 open issue
+   #2): analyze_screenshot() already computed it internally but it never
+   made it out of the /scan/image-only response path into the main /scan
+   route's feature dict - now threaded through.
 6. `category` - no known source anywhere in the docs handed off. Stays
    None with a TODO.
 7. SHAP schema flattening - only the RandomForest component's
@@ -343,7 +344,7 @@ class Predictor:
             "registrar": features.get("whois_registrar"),
             "ssl_issuer": features.get("ssl_issuer"),
             "visual_similarity": visual_similarity_score,
-            "closest_brand": features.get("closest_brand"),  # decision #5: unverified, always None so far
+            "closest_brand": features.get("closest_brand"),  # decision #5: now threaded through from pipeline.py
             "features": features,
             "shap": shap_list,
         }

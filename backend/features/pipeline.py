@@ -40,6 +40,7 @@ class FeaturePipeline:
 
         visual_similarity_score = None
         dom_credential_form_detected = None
+        closest_brand = None
         if screenshot_result["success"]:
             visual_analysis = analyze_screenshot(
                 screenshot_result["screenshot_bytes"],
@@ -48,6 +49,14 @@ class FeaturePipeline:
             )
             visual_similarity_score = visual_analysis["visual_similarity_score"]
             dom_credential_form_detected = visual_analysis["dom_credential_form_detected"]
+            # Phase 3.7 fix: closest_brand was already computed inside
+            # analyze_screenshot() (brand_similarity.compare_to_brands),
+            # but only ever surfaced via the standalone /scan/image
+            # endpoint's response — it never made it into the main /scan
+            # route's feature dict. Threaded through here so
+            # predictor.py's features.get("closest_brand") stops always
+            # returning None.
+            closest_brand = visual_analysis["details"]["brand_similarity"]["closest_brand"]
 
         features = {
             **url_feats,
@@ -91,6 +100,7 @@ class FeaturePipeline:
 
             "visual_similarity_score": visual_similarity_score,
             "dom_credential_form_detected": dom_credential_form_detected,
+            "closest_brand": closest_brand,
         }
 
         features["aggregate_lexical_risk_score"] = round(

@@ -261,6 +261,19 @@ def test_predict_category_and_closest_brand_stay_none():
     assert result["closest_brand"] is None
 
 
+def test_predict_surfaces_closest_brand_when_present():
+    """Phase 3.7 fix: pipeline.py now threads closest_brand through from
+    analyze_screenshot()'s brand-similarity check, so predictor.py's
+    features.get("closest_brand") should stop always returning None once
+    the pipeline actually finds a visual brand match."""
+    features = _base_features()
+    features["closest_brand"] = "paypal"
+    fake_proba = np.array([[0.1, 0.9]])
+    with patch.object(predictor.model, "predict_proba", return_value=fake_proba):
+        result = predictor.predict(features)
+    assert result["closest_brand"] == "paypal"
+
+
 # ── visual-score blend (_apply_visual_adjustment) ────────────────────────
 
 def test_visual_adjustment_no_bump_below_threshold():
@@ -410,6 +423,42 @@ async def test_scan_endpoint_phishing_style_domain_returns_high_score(_mocked_pi
     data = response.json()
     assert data["verdict"] in ("SUSPICIOUS", "PHISHING")  # loose bucket check
     assert data["is_zero_day"] is True
+
+
+async def test_scan_endpoint_surfaces_closest_brand_from_visual_stage():
+    """Phase 3.7 fix, end-to-end: a page that visually matches a known
+    brand should have that brand name come back in the /api/v1/scan
+    response's closest_brand field, not just buried in the
+    /scan/image-only response like before."""
+    with patch("features.pipeline.resolve_dns", new=AsyncMock(return_value={
+                "dns_resolves": False, "dns_a_record_count": 0,
+                "dns_has_aaaa": False, "dns_has_mx": False, "dns_resolved_ips": [],
+            })), \
+         patch("features.pipeline.lookup_whois", new=AsyncMock(return_value={
+                "whois_found": False, "whois_domain_age_days": None,
+                "whois_recently_registered": False,
+                "whois_privacy_protected": False, "whois_registrar": None,
+            })), \
+         patch("features.pipeline.inspect_ssl", new=AsyncMock(return_value={
+                "ssl_valid": False, "ssl_self_signed": False,
+                "ssl_issuer": None, "ssl_days_until_expiry": None, "ssl_expired": None,
+            })), \
+         patch("features.pipeline.capture_screenshot", new=AsyncMock(return_value={
+                "success": True, "screenshot_bytes": b"fake", "html_content": "<html></html>",
+            })), \
+         patch("features.pipeline.analyze_screenshot", return_value={
+                "visual_similarity_score": 0.92,
+                "dom_credential_form_detected": True,
+                "details": {"brand_similarity": {"closest_brand": "paypal"}},
+            }):
+        async with AsyncClient(transport=ASGITransport(app=_get_app()), base_url="http://test") as client:
+            response = await client.post(
+                "/api/v1/scan", json={"url": "http://paypal-secure-login.tk"}
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["closest_brand"] == "paypal"
 
 
 def _get_app():

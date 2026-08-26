@@ -110,9 +110,10 @@ Considered a versioning/rollback scheme (e.g. `models/v1/`, `models/v2/`, a poin
 
 | `test\_phase3.py` | ✅ Written, 37/37 passing | |
 
+| `closest\_brand` threading (open issue #2) | ✅ Fixed in `pipeline.py`, 39/39 passing | |
+
 | Retrain on full 4,000-row dataset | | ⏳ Recommended before demo, not run this session |
 
 | Regenerate `preprocessing\_artifacts.json` | | ⏳ Bundled with retraining above |
 
 | Model registry/versioning | | ❌ Explicitly out of scope for hackathon timeline |
-
