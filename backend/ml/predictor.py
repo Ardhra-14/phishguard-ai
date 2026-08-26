@@ -54,8 +54,15 @@ inline as [reconstruction choice] so it's easy to find and revisit.
    nowhere close to CLONE_THRESHOLD=12) - gating on the already-computed,
    already-thresholded brand_clone_flagged fixes this without touching
    CLONE_THRESHOLD or the reference-brand set at all.
-6. `category` - no known source anywhere in the docs handed off. Stays
-   None with a TODO.
+6. `category` - Phase 3.7 fix: sourced from brand_detector.py's
+   detect_brand_impersonation(), which now maps every brand in
+   brand_dict.json to a broad category (Banking, Payments & UPI,
+   Government & Public Services, Telecom, E-commerce & Travel, Insurance
+   & Investment) via data/brand_categories.json. Stays None when no
+   brand keyword/typosquat matched at all - a domain with no lexical
+   brand signal has no category to report, that's expected, not a gap.
+   Independent of closest_brand (decision #5), which is a *visual* signal
+   from the screenshot/clone check - the two can legitimately disagree.
 7. SHAP schema flattening - only the RandomForest component's
    top_contributions are surfaced in the flat `shap` list, since RF's
    values are already probability-scale and directly comparable to
@@ -344,7 +351,7 @@ class Predictor:
             "score": score,
             "verdict": verdict,
             "confidence": confidence,
-            "category": None,  # decision #6: no known source, TODO
+            "category": features.get("category"),  # decision #6: now sourced from brand_detector.py, see docstring
             "is_zero_day": bool(features.get("whois_recently_registered", False)),
             "domain_age_days": features.get("whois_domain_age_days"),
             "registrar": features.get("whois_registrar"),

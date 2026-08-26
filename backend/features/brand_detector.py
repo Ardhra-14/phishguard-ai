@@ -11,9 +11,26 @@ from pathlib import Path
 from rapidfuzz.distance import Levenshtein
 
 _DATA_PATH = Path(__file__).resolve().parent.parent / "data" / "brand_dict.json"
+_CATEGORY_PATH = Path(__file__).resolve().parent.parent / "data" / "brand_categories.json"
 
 with open(_DATA_PATH, "r", encoding="utf-8") as f:
     _BRAND_DICT: dict[str, list[str]] = json.load(f)
+
+# category field, Phase 3.7: no data source existed anywhere for this
+# before now (predictor.py's response hardcoded it to None with a TODO).
+# Maps each brand_dict.json key to a broad category so a matched brand
+# can be reported as e.g. "Banking" or "Government & Public Services",
+# useful for CERT-In-style reporting/triage. Missing a brand here is a
+# bug, not a fallback case - every brand_dict.json key must have an
+# entry, checked at import time below.
+with open(_CATEGORY_PATH, "r", encoding="utf-8") as f:
+    _BRAND_CATEGORIES: dict[str, str] = json.load(f)
+
+_uncategorized = set(_BRAND_DICT) - set(_BRAND_CATEGORIES)
+if _uncategorized:
+    raise RuntimeError(
+        f"brand_categories.json is missing categories for: {sorted(_uncategorized)}"
+    )
 
 # Weight added to the impersonation score for every distinct brand keyword
 # found injected into the domain.
@@ -74,6 +91,7 @@ def detect_brand_impersonation(domain: str) -> dict:
           "keyword_hits": [str, ...],
           "typosquat_hits": [{"token", "brand", "keyword", "distance"}, ...],
           "has_action_word": bool,
+          "category": str | None,
         }
     """
     tokens = _domain_tokens(domain)
@@ -119,4 +137,11 @@ def detect_brand_impersonation(domain: str) -> dict:
         "keyword_hits": sorted(set(keyword_hits)),
         "typosquat_hits": typosquat_hits,
         "has_action_word": has_action_word,
+        # Phase 3.7: category of the primary matched brand, or None if no
+        # brand matched at all. When multiple brands match (rare - e.g. a
+        # lure combining "sbi" + "upi"), the alphabetically-first matched
+        # brand's category wins, since matched_brands is already sorted -
+        # deterministic, but arbitrary among ties; not intended to imply
+        # one match is more "real" than another.
+        "category": _BRAND_CATEGORIES[sorted(matched_brands)[0]] if matched_brands else None,
     }

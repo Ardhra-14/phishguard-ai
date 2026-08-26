@@ -18,6 +18,8 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 
 from ml.predictor import predictor, _normalize_ssl_issuer, _humanize_feature_name
+from features import brand_detector
+from features.brand_detector import detect_brand_impersonation
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────
@@ -41,6 +43,7 @@ def _base_features() -> dict:
         "ssl_days_until_expiry": 60, "ssl_expired": False,
         "aggregate_lexical_risk_score": 0.01,
         "visual_similarity_score": None, "dom_credential_form_detected": None,
+        "category": None,
     }
 
 
@@ -250,15 +253,29 @@ def test_predict_returns_registrar_and_ssl_issuer_from_features():
     assert result["domain_age_days"] == features["whois_domain_age_days"]
 
 
-def test_predict_category_and_closest_brand_stay_none():
-    """Decisions #5/#6: neither key exists anywhere in FeaturePipeline's
-    output yet, so these must stay None rather than raising or guessing."""
+def test_predict_category_and_closest_brand_stay_none_with_no_brand_match():
+    """Decision #5/#6, no-match case: when FeaturePipeline finds no brand
+    signal at all (lexical or visual), both must stay None rather than
+    raising or guessing at a value."""
     features = _base_features()
     fake_proba = np.array([[0.9, 0.1]])
     with patch.object(predictor.model, "predict_proba", return_value=fake_proba):
         result = predictor.predict(features)
     assert result["category"] is None
     assert result["closest_brand"] is None
+
+
+def test_predict_surfaces_category_when_present():
+    """Phase 3.7 fix: category is now sourced from
+    brand_detector.py -> pipeline.py's features["category"], not hardcoded
+    to None. Independent of closest_brand - category comes from the
+    lexical brand-keyword/typosquat match, not the visual clone check."""
+    features = _base_features()
+    features["category"] = "Banking"
+    fake_proba = np.array([[0.1, 0.9]])
+    with patch.object(predictor.model, "predict_proba", return_value=fake_proba):
+        result = predictor.predict(features)
+    assert result["category"] == "Banking"
 
 
 def test_predict_surfaces_closest_brand_when_present():
@@ -360,6 +377,58 @@ def test_flatten_shap_only_surfaces_random_forest_component():
     features_in_output = [item["feature"] for item in flattened]
     assert "url_length" in features_in_output
     assert "entropy" not in features_in_output
+
+
+# ── brand_detector.py's category field ───────────────────────────────────
+
+def test_detect_brand_impersonation_returns_category_for_matched_brand():
+    result = detect_brand_impersonation("sbi-login-secure.xyz")
+    assert "SBI" in result["matched_brands"]
+    assert result["category"] == "Banking"
+
+
+def test_detect_brand_impersonation_category_none_when_no_match():
+    result = detect_brand_impersonation("totally-unrelated-domain.com")
+    assert result["matched_brands"] == []
+    assert result["category"] is None
+
+
+def test_detect_brand_impersonation_covers_every_taxonomy_bucket():
+    """Sanity check that the six intended categories are all actually
+    reachable, not just present in the JSON file but never returned."""
+    samples = {
+        "hdfc-verify.com": "Banking",
+        "paytm-kyc-update.in": "Payments & UPI",
+        "incometaxindia-refund.xyz": "Government & Public Services",
+        "airtel-recharge-offer.com": "Telecom",
+        "flipkart-bigbillion-deal.xyz": "E-commerce & Travel",
+        "zerodha-kyc-verify.com": "Insurance & Investment",
+    }
+    for domain, expected_category in samples.items():
+        result = detect_brand_impersonation(domain)
+        assert result["category"] == expected_category, (
+            f"{domain} -> expected {expected_category}, got {result['category']} "
+            f"(matched_brands={result['matched_brands']})"
+        )
+
+
+def test_detect_brand_impersonation_category_matches_brand_dict_completeness():
+    """Every brand_dict.json entry must have a category - this mirrors the
+    RuntimeError check at import time in brand_detector.py, as a fast
+    test-time signal if someone adds a brand and forgets to categorize it."""
+    import json as _json
+    from pathlib import Path as _Path
+
+    brand_dict_path = _Path(brand_detector.__file__).resolve().parent.parent / "data" / "brand_dict.json"
+    category_path = _Path(brand_detector.__file__).resolve().parent.parent / "data" / "brand_categories.json"
+
+    with open(brand_dict_path) as f:
+        brands = _json.load(f)
+    with open(category_path) as f:
+        categories = _json.load(f)
+
+    missing = set(brands) - set(categories)
+    assert missing == set(), f"Uncategorized brands: {missing}"
 
 
 # ── end-to-end /api/v1/scan smoke test ───────────────────────────────────

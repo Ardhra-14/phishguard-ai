@@ -71,6 +71,14 @@ class FeaturePipeline:
             "brand_keyword_hit_count": len(brand["keyword_hits"]),
             "brand_typosquat_hit_count": len(brand["typosquat_hits"]),
             "brand_has_action_word": int(brand["has_action_word"]),
+            # Phase 3.7: category of the primary matched brand (Banking,
+            # Payments & UPI, Government & Public Services, etc.), or None
+            # if no brand matched. This is a lexical-match category, not a
+            # visual one - independent of closest_brand below, which comes
+            # from the screenshot/visual-clone check and can legitimately
+            # disagree (e.g. a typosquat of "hdfc" that also happens to
+            # visually resemble a different brand's login page).
+            "category": brand["category"],
 
             "tld": tld["tld"],
             "tld_risk_score": tld["risk"],
