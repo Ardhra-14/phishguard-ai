@@ -29,11 +29,12 @@ inline as [reconstruction choice] so it's easy to find and revisit.
    None because nothing listened on 443) also fall back to the sentinel,
    not to 0/False, so "no data" stays distinguishable from "checked and
    found false".
-3. Verdict thresholds: score >= 70 -> PHISHING, >= 35 -> SUSPICIOUS, else
-   SAFE. NOT derived from a calibration curve or precision/recall sweep -
-   a reasonable starting point given 0.99 ROC-AUC, but should be replaced
-   with real threshold analysis before shipping to CERT-In (Phase 3.7
-   open issue #3).
+3. Verdict thresholds: score >= 70 -> PHISHING, >= 25 -> SUSPICIOUS, else
+   SAFE. Updated in Phase 3.7 threshold validation (closing open issue #3)
+   from the original placeholder (70/35) after evaluating against the
+   model's true held-out test set - see PHISHING_THRESHOLD/
+   SUSPICIOUS_THRESHOLD constants above and
+   data/phase3_7_threshold_validation.md for the full analysis.
 4. Visual score blend: feature_columns_in_order does NOT include
    visual_similarity_score / dom_credential_form_detected (the visual
    module was built after Phase 3.4/3.5 training). A small, capped,
@@ -94,6 +95,28 @@ META_PATH = _ML_DIR / "models" / "xgboost_phishing_model.meta.json"
 PREPROCESSING_ARTIFACTS_PATH = _BACKEND_DIR / "data" / "preprocessing_artifacts.json"
 
 TOP_N_SHAP = 8
+
+# Verdict thresholds - Phase 3.7 threshold validation (see
+# data/phase3_7_threshold_validation.md for the full analysis). Evaluated
+# against the model's true held-out test set (the same 20% stratified
+# split, random_state=42, that produced meta.json's sanity_check_metrics -
+# reconstructed and confirmed to match exactly: 95.9% accuracy, 0.99
+# ROC-AUC, confusion matrix [[383,17],[16,384]]).
+#
+# PHISHING_THRESHOLD stays at 70 - raising or lowering it trades off
+# against SUSPICIOUS_THRESHOLD in ways that didn't clearly beat 70 in the
+# sweep.
+#
+# SUSPICIOUS_THRESHOLD lowered 35 -> 25. At 35, 13 of 400 real phishing
+# domains in the held-out set scored as outright SAFE - the worse failure
+# mode for a protective tool (a missed detection is more dangerous than
+# an over-cautious flag). At 25, that drops to 10, at the cost of more
+# legit domains landing in SUSPICIOUS instead of a clean SAFE (19 -> 35
+# of 400) - more review friction, but zero additional severe
+# misclassifications. For a CERT-In-facing tool, erring toward "flag
+# more borderline cases" is the right trade-off.
+PHISHING_THRESHOLD = 70
+SUSPICIOUS_THRESHOLD = 25
 
 # Feature keys that pass straight through the incoming feature dict into the
 # model's input row, unencoded (numeric / already-int-cast booleans).
@@ -283,9 +306,9 @@ class Predictor:
     def _score_and_verdict(proba_phishing: float) -> tuple[int, str, float]:
         score = min(round(proba_phishing * 100), 100)
         score = max(score, 0)
-        if score >= 70:
+        if score >= PHISHING_THRESHOLD:
             verdict = "PHISHING"
-        elif score >= 35:
+        elif score >= SUSPICIOUS_THRESHOLD:
             verdict = "SUSPICIOUS"
         else:
             verdict = "SAFE"
@@ -335,9 +358,9 @@ class Predictor:
         score = self._apply_visual_adjustment(score, visual_similarity_score, has_login_form)
         # Re-derive verdict in case the visual bump pushed the score across
         # a threshold boundary.
-        if score >= 70:
+        if score >= PHISHING_THRESHOLD:
             verdict = "PHISHING"
-        elif score >= 35:
+        elif score >= SUSPICIOUS_THRESHOLD:
             verdict = "SUSPICIOUS"
 
         shap_list = []

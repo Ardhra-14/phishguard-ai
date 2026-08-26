@@ -216,13 +216,17 @@ def test_encode_ssl_issuer_unseen_goes_to_other():
 
 @pytest.mark.parametrize("proba,expected_score,expected_verdict", [
     (0.00, 0, "SAFE"),
-    (0.34, 34, "SAFE"),
-    (0.35, 35, "SUSPICIOUS"),
+    (0.24, 24, "SAFE"),
+    (0.25, 25, "SUSPICIOUS"),
     (0.69, 69, "SUSPICIOUS"),
     (0.70, 70, "PHISHING"),
     (1.00, 100, "PHISHING"),
 ])
 def test_score_and_verdict_thresholds(proba, expected_score, expected_verdict):
+    """Thresholds per Phase 3.7 threshold validation: PHISHING >= 70,
+    SUSPICIOUS >= 25 (lowered from the original 35 placeholder - see
+    predictor.py's module docstring decision #3 and
+    data/phase3_7_threshold_validation.md)."""
     score, verdict, confidence = predictor._score_and_verdict(proba)
     assert score == expected_score
     assert verdict == expected_verdict

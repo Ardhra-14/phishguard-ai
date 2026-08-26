@@ -112,6 +112,10 @@ Considered a versioning/rollback scheme (e.g. `models/v1/`, `models/v2/`, a poin
 
 | `closest\_brand` threading (open issue #2) | ✅ Fixed in `pipeline.py`, 39/39 passing | |
 
+| `category` field (open issue #2, other half) | ✅ Added brand->category taxonomy, threaded through, 45/45 passing | |
+
+| Verdict threshold validation (open issue #3) | ✅ Validated against true held-out set, SUSPICIOUS threshold 35→25 - see `phase3_7_threshold_validation.md` | |
+
 | Retrain on full 4,000-row dataset | | ⏳ Recommended before demo, not run this session |
 
 | Regenerate `preprocessing\_artifacts.json` | | ⏳ Bundled with retraining above |
