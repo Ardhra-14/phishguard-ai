@@ -59,9 +59,40 @@ class ScanResponse(BaseModel):
 # ── Background task: persist result ──────────────────────────────────────────
 
 async def _persist_scan(result_data: dict, db: AsyncSession):
-    """Save scan result to PostgreSQL and update threat feed."""
+    """Save scan result to PostgreSQL and update threat feed.
+
+    Phase 3.7 fix (open issue #1 from the Phase 3.6 summary): ScanResult's
+    columns are named `features_json` / `shap_json`, not `features` / `shap`
+    (see db/models.py). Blindly spreading result_data's keys into
+    ScanResult(**...) raised "'features' is an invalid keyword argument for
+    ScanResult" on every successful scan, silently caught below - so nothing
+    was ever actually persisted with its feature/SHAP breakdown. Remapped
+    explicitly instead of spreading the dict.
+
+    Also fixes a second latent bug: the ThreatFeed insert below referenced
+    result_data["id"], but result_data only has a "scan_id" key - this
+    keyword also raised (also silently swallowed) any time score crossed
+    settings.MEDIUM_RISK_THRESHOLD.
+    """
     try:
-        scan = ScanResult(id=result_data["scan_id"], **{k: v for k, v in result_data.items() if k != "scan_id"})
+        scan = ScanResult(
+            id=result_data["scan_id"],
+            domain=result_data["domain"],
+            url=result_data["url"],
+            score=result_data["score"],
+            verdict=result_data["verdict"],
+            confidence=result_data["confidence"],
+            category=result_data.get("category"),
+            is_zero_day=result_data.get("is_zero_day", False),
+            features_json=result_data.get("features", {}),
+            shap_json=result_data.get("shap", []),
+            domain_age_days=result_data.get("domain_age_days"),
+            registrar=result_data.get("registrar"),
+            ssl_issuer=result_data.get("ssl_issuer"),
+            visual_similarity=result_data.get("visual_similarity"),
+            closest_brand=result_data.get("closest_brand"),
+            scan_duration_ms=result_data.get("scan_duration_ms"),
+        )
         db.add(scan)
 
         if result_data["score"] >= settings.MEDIUM_RISK_THRESHOLD:
@@ -70,7 +101,7 @@ async def _persist_scan(result_data: dict, db: AsyncSession):
                 score=result_data["score"],
                 verdict=result_data["verdict"],
                 category=result_data.get("category"),
-                scan_id=result_data["id"],
+                scan_id=result_data["scan_id"],
             )
             db.add(feed_entry)
 
@@ -100,15 +131,20 @@ async def scan_domain(
     """
     start_ms = int(time.time() * 1000)
 
-    # ── Phase 0 stub — real feature pipeline wired in Phase 2–4 ──────────────
-    # Import here so app starts even before ML deps are installed
+    # ── Real feature pipeline + ML ensemble (Phase 2-3.6) ────────────────────
+    # Import here so app still starts even before ML deps are installed.
+    #
+    # Phase 3.6 fix: import the module-level `predictor` singleton, NOT the
+    # `Predictor` class. Instantiating Predictor() per-request reloaded the
+    # joblib model, meta.json, preprocessing artifacts, and rebuilt both SHAP
+    # TreeExplainers from scratch on every single scan - defeating the whole
+    # point of loading them once at import time.
     try:
         from features.pipeline import FeaturePipeline
-        from ml.predictor import Predictor
+        from ml.predictor import predictor
 
         pipeline = FeaturePipeline()
         features = await pipeline.extract(req.url)
-        predictor = Predictor()
         result = predictor.predict(features)
     except ImportError:
         # Stub response while ML modules are being built

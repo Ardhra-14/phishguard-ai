@@ -40,6 +40,7 @@ class FeaturePipeline:
 
         visual_similarity_score = None
         dom_credential_form_detected = None
+        closest_brand = None
         if screenshot_result["success"]:
             visual_analysis = analyze_screenshot(
                 screenshot_result["screenshot_bytes"],
@@ -48,6 +49,19 @@ class FeaturePipeline:
             )
             visual_similarity_score = visual_analysis["visual_similarity_score"]
             dom_credential_form_detected = visual_analysis["dom_credential_form_detected"]
+            # Phase 3.7 fix (v2): only surface closest_brand when
+            # brand_clone_flagged is True. compare_to_brands() always
+            # returns the argmin over the reference set - "whichever
+            # brand is least dissimilar" - even when the distance is
+            # nowhere close to a real match (e.g. google.com "matching"
+            # HDFC at a near-meaningless hash distance). brand_clone_flagged
+            # is the actual, already-thresholded signal analyze_screenshot()
+            # uses to decide whether a clone match is real (hash distance
+            # below CLONE_THRESHOLD *and* the domain doesn't already
+            # belong to that brand) - gating on it here instead of always
+            # taking the raw argmin keeps closest_brand meaningful.
+            if visual_analysis["details"]["brand_clone_flagged"]:
+                closest_brand = visual_analysis["details"]["brand_similarity"]["closest_brand"]
 
         features = {
             **url_feats,
@@ -57,6 +71,14 @@ class FeaturePipeline:
             "brand_keyword_hit_count": len(brand["keyword_hits"]),
             "brand_typosquat_hit_count": len(brand["typosquat_hits"]),
             "brand_has_action_word": int(brand["has_action_word"]),
+            # Phase 3.7: category of the primary matched brand (Banking,
+            # Payments & UPI, Government & Public Services, etc.), or None
+            # if no brand matched. This is a lexical-match category, not a
+            # visual one - independent of closest_brand below, which comes
+            # from the screenshot/visual-clone check and can legitimately
+            # disagree (e.g. a typosquat of "hdfc" that also happens to
+            # visually resemble a different brand's login page).
+            "category": brand["category"],
 
             "tld": tld["tld"],
             "tld_risk_score": tld["risk"],
@@ -91,6 +113,7 @@ class FeaturePipeline:
 
             "visual_similarity_score": visual_similarity_score,
             "dom_credential_form_detected": dom_credential_form_detected,
+            "closest_brand": closest_brand,
         }
 
         features["aggregate_lexical_risk_score"] = round(

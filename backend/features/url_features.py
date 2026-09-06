@@ -45,13 +45,32 @@ def extract_url_features(url: str) -> dict:
     parsed = urlparse(url if "://" in url else f"https://{url}")
     host = parsed.netloc.split("@")[-1]      # drop userinfo (user:pass@) if present
     host_no_port = host.split(":")[0]
-
     labels = [label for label in host_no_port.split(".") if label]
+
     # Rough heuristic: everything before the last two labels counts as
     # subdomain depth, e.g. "a.b.example.com" -> depth 2.
     subdomain_depth = max(len(labels) - 2, 0)
 
     special_chars = re.findall(r"[^a-zA-Z0-9.\-/:]", url)
+
+    # path_length fix (Phase 3.5): urlparse("https://x.com/").path == "/"
+    # (len 1) vs urlparse("https://x.com").path == "" (len 0) -- these are
+    # semantically the same "bare homepage" case, but a raw len() on the
+    # parsed path treated them as different by exactly 1. That off-by-one
+    # turned out to correlate strongly with URL *source* (OpenPhish-reported
+    # phishing URLs almost always keep a trailing slash; legit URLs resolved
+    # via aiohttp's resp.url didn't consistently), not with actual phishing
+    # signal -- confirmed via SHAP analysis showing path_length dominating
+    # despite near-zero native feature_importances_, and 62.4% of phishing
+    # URLs having a bare/root path per raw urlparse() check while the
+    # feature showed 0% at path_length==0 for that same class. Stripping a
+    # single trailing "/" before measuring length treats "/", "", and
+    # "/login/" vs "/login" consistently. See
+    # backend/data/phase3_5_path_length_check.md for the full investigation.
+    raw_path = parsed.path or ""
+    normalized_path = raw_path[:-1] if raw_path.endswith("/") and len(raw_path) > 1 else raw_path
+    if normalized_path == "/":
+        normalized_path = ""
 
     return {
         "url_length": len(url),
@@ -63,7 +82,7 @@ def extract_url_features(url: str) -> dict:
         "has_https": int(parsed.scheme == "https"),
         "is_ip_address": int(_is_ip_host(host_no_port)),
         "has_at_symbol": int("@" in url),
-        "path_length": len(parsed.path or ""),
+        "path_length": len(normalized_path),
         "query_param_count": len(parsed.query.split("&")) if parsed.query else 0,
         "special_char_count": len(special_chars),
     }
