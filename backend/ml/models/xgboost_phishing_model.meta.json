@@ -1,5 +1,5 @@
 {
-  "saved_at_utc": "2026-08-02T08:20:10.698728+00:00",
+  "saved_at_utc": "2026-09-11T03:56:16.406886+00:00",
   "model_type": "VotingClassifier (RandomForestClassifier + XGBClassifier, soft voting)",
   "phase": "3.4",
   "ensemble_adoption_note": "Adopted this session after the path_length trailing-slash fix made the ensemble beat every individual model simultaneously on accuracy/precision/f1 -- see phase3_4_ensemble_results.md and phase3_5_path_length_check.md. Prior cycles kept tuned XGBoost alone since the ensemble tied it exactly.",
@@ -60,42 +60,49 @@
     "ssl_self_signed",
     "ssl_days_until_expiry",
     "ssl_expired",
+    "visual_similarity_score",
+    "dom_credential_form_detected",
     "aggregate_lexical_risk_score",
     "whois_registrar_was_missing",
     "whois_domain_age_days_was_missing",
     "ssl_days_until_expiry_was_missing",
     "ssl_issuer_was_missing",
     "ssl_expired_was_missing",
+    "visual_similarity_score_was_missing",
+    "dom_credential_form_detected_was_missing",
+    "category_was_missing",
     "tld_freq",
     "whois_registrar_freq",
+    "category_freq",
     "ssl_issuer_google_trust_services",
     "ssl_issuer_let's_encrypt",
     "ssl_issuer_digicert_inc",
     "ssl_issuer_amazon",
-    "ssl_issuer_sectigo_limited",
     "ssl_issuer_globalsign_nv_sa",
-    "ssl_issuer_hellenic_academic_and_research_institutions_ca",
-    "ssl_issuer_zerossl_gmbh",
+    "ssl_issuer_sectigo_limited",
     "ssl_issuer_godaddycom_inc",
+    "ssl_issuer_godaddycom",
+    "ssl_issuer_hellenic_academic_and_research_institutions_ca",
+    "ssl_issuer_microsoft_corporation",
     "ssl_issuer_other",
     "ssl_issuer_missing"
   ],
-  "n_features": 54,
+  "n_features": 61,
   "sanity_check_metrics": {
-    "accuracy": 0.95875,
-    "precision": 0.9576059850374065,
-    "recall": 0.96,
-    "f1": 0.9588014981273408,
-    "roc_auc": 0.99004375
+    "accuracy": 0.9711340206185567,
+    "precision": 0.9828326180257511,
+    "recall": 0.9581589958158996,
+    "f1": 0.9703389830508474,
+    "roc_auc": 0.9937578664489574
   },
   "sanity_check_confusion_matrix": [
     [
-      383,
-      17
+      484,
+      8
     ],
     [
-      16,
-      384
+      20,
+      458
     ]
   ],
   "requires_for_inference": "data/preprocessing_artifacts.json (frequency maps + ssl_issuer top-10 list from Phase 3.2) to encode a single incoming URL identically to how this training data was encoded."

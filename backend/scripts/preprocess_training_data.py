@@ -1,40 +1,24 @@
-"""
-PhishGuard AI — Phase 3.2, Step 2: Preprocessing / feature engineering.
+﻿"""
+PhishGuard AI - Phase 3.2, Step 2: Preprocessing / feature engineering.
 
-Reads backend/data/training_dataset.csv (4000 rows x 44 cols, as produced by
-Phase 3.1) and produces a clean, fully-numeric training matrix ready for
-Phase 3.3 (Random Forest baseline).
+Reads backend/data/training_dataset.csv and produces a clean, fully-numeric
+training matrix ready for model training.
 
-Decisions locked in from the Phase 3.2 audit (see phase3_2_audit.md):
-  - tld, whois_registrar: frequency encoding (long-tail, 202 / 243 uniques,
-    one-hot infeasible at 4000 rows).
-  - ssl_issuer: one-hot, top-10 + "other" + "missing" (37 uniques, top-10
-    covers 97.68% of non-null rows — stays interpretable for Phase 3.5 SHAP
-    and the Phase 5 CERT-In report, e.g. "issued by Let's Encrypt").
-  - visual_similarity_score, dom_credential_form_detected (Phase 4 stubs,
-    100% null): DROPPED for now. Re-add when Phase 4 lands rather than
-    carrying dead columns through training.
-  - whois_domain_age_days, ssl_days_until_expiry: numeric, imputed with a
-    -1 sentinel (real values are always >= 0) alongside an explicit
-    `_was_missing` boolean flag.
-  - whois_registrar, ssl_issuer, ssl_expired: missingness folded into their
-    own encoding (frequency encoding naturally scores the "__missing__"
-    bucket; ssl_issuer one-hot gets an explicit `ssl_issuer_missing` column)
-    PLUS a standalone `_was_missing` flag per column, computed via exact
-    isnull() rather than reusing whois_found/ssl_valid (those don't line up
-    exactly with the null counts — e.g. whois_found implies 1760 "found"
-    rows vs. 1698 non-null whois_registrar rows).
+Updated (Phase 4 integration): visual_similarity_score and
+dom_credential_form_detected are REAL Phase 4 output now (no longer 100%
+null stubs), so they are kept and imputed like any other partially-missing
+feature rather than dropped. category is frequency-encoded (same treatment
+as tld/whois_registrar). closest_brand is dropped - at current dataset
+size it is ~99.9% null (screenshot capture only succeeds for a fraction of
+scanned URLs, and brand matches are rare even then), so there isn't enough
+signal yet to justify keeping it; revisit once more data is collected.
 
 Outputs (all under backend/data/):
-  - training_features.csv       — X, fully numeric, no nulls, model-ready
-  - training_labels.csv         — y (label column, aligned by row index)
-  - training_ids.csv            — url, domain kept for traceability/debugging
-  - preprocessing_artifacts.json — frequency maps + ssl_issuer top-10 list,
-                                    needed by Phase 3.6 (ml/predictor.py) to
-                                    apply IDENTICAL encoding to a single new
-                                    URL at inference time. Do not regenerate
-                                    this from a single-row input — it must
-                                    be fit once here on the full training set.
+  - training_features.csv       - X, fully numeric, no nulls, model-ready
+  - training_labels.csv         - y (label column, aligned by row index)
+  - training_ids.csv            - url, domain kept for traceability/debugging
+  - preprocessing_artifacts.json - frequency maps + ssl_issuer top-10 list,
+                                    needed at inference time.
 
 Run:
     docker compose exec api python scripts/preprocess_training_data.py
@@ -59,25 +43,40 @@ OUT_ARTIFACTS = DATA_DIR / "preprocessing_artifacts.json"
 ID_COLS = ["url", "domain"]
 LABEL_COL = "label"
 
-PHASE4_STUB_COLS = ["visual_similarity_score", "dom_credential_form_detected"]
+# closest_brand: near-total null (~99.9%) at current dataset size, not
+# enough signal yet to justify keeping - dropped, same treatment the
+# original script gave visual_similarity_score/dom_credential_form_detected
+# back when THOSE were 100% null stubs.
+DROPPED_LOW_SIGNAL_COLS = ["closest_brand"]
 
 SENTINEL = -1  # for numeric columns where real values are always >= 0
 
-FREQ_ENCODE_COLS = ["tld", "whois_registrar"]
+FREQ_ENCODE_COLS = ["tld", "whois_registrar", "category"]
 
 SSL_ISSUER_COL = "ssl_issuer"
 SSL_ISSUER_TOP_N = 10
 
-NUMERIC_SENTINEL_COLS = ["whois_domain_age_days", "ssl_days_until_expiry"]
+NUMERIC_SENTINEL_COLS = [
+    "whois_domain_age_days",
+    "ssl_days_until_expiry",
+    "visual_similarity_score",
+]
 
-# Columns that get an explicit `_was_missing` flag (per the audit: these are
-# genuine lookup-failure nulls, not stubs).
+# Boolean-ish columns (True/False/NaN as object dtype) needing explicit
+# 1/0/sentinel mapping, same pattern as ssl_expired.
+BOOLEAN_SENTINEL_COLS = ["ssl_expired", "dom_credential_form_detected"]
+
+# Columns that get an explicit `_was_missing` flag: genuine lookup/capture
+# failures, not stubs.
 MISSINGNESS_FLAG_COLS = [
     "whois_registrar",
     "whois_domain_age_days",
     "ssl_days_until_expiry",
     "ssl_issuer",
     "ssl_expired",
+    "visual_similarity_score",
+    "dom_credential_form_detected",
+    "category",
 ]
 
 
@@ -115,13 +114,14 @@ def impute_numeric_sentinels(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def encode_ssl_expired(df: pd.DataFrame) -> pd.DataFrame:
-    """ssl_expired arrives as object dtype (True/False/NaN mix). Map to
-    1 / 0 / sentinel; the _was_missing flag already added separately covers
-    the NaN case explicitly for the model."""
+def encode_boolean_sentinels(df: pd.DataFrame) -> pd.DataFrame:
+    """Map True/False/NaN-mix object columns to 1/0/sentinel. The
+    _was_missing flag already added separately covers the NaN case
+    explicitly for the model."""
     mapping = {True: 1, False: 0, "True": 1, "False": 0, "true": 1, "false": 0}
-    df["ssl_expired"] = df["ssl_expired"].map(mapping)
-    df["ssl_expired"] = df["ssl_expired"].fillna(SENTINEL).astype(int)
+    for col in BOOLEAN_SENTINEL_COLS:
+        df[col] = df[col].map(mapping)
+        df[col] = df[col].fillna(SENTINEL).astype(int)
     return df
 
 
@@ -140,9 +140,6 @@ def fit_frequency_encoding(df: pd.DataFrame, col: str) -> dict:
 def apply_frequency_encoding(df: pd.DataFrame, col: str, freq_map: dict) -> pd.DataFrame:
     def lookup(val):
         key = "__missing__" if pd.isnull(val) else str(val)
-        # Unseen category at inference time (not in training data) -> treat
-        # as if it were missing/rare: use the __missing__ frequency as a
-        # conservative fallback rather than 0.
         return freq_map.get(key, freq_map.get("__missing__", 0.0))
 
     df[f"{col}_freq"] = df[col].apply(lookup)
@@ -199,12 +196,12 @@ def main() -> None:
     ids_df = df[ID_COLS].copy()
     y = df[[LABEL_COL]].copy()
 
-    df = df.drop(columns=ID_COLS + [LABEL_COL] + PHASE4_STUB_COLS)
-    print(f"Dropped id cols {ID_COLS}, label, and Phase 4 stubs {PHASE4_STUB_COLS}")
+    df = df.drop(columns=ID_COLS + [LABEL_COL] + DROPPED_LOW_SIGNAL_COLS)
+    print(f"Dropped id cols {ID_COLS}, label, and low-signal cols {DROPPED_LOW_SIGNAL_COLS}")
 
     df = add_missingness_flags(df)
     df = impute_numeric_sentinels(df)
-    df = encode_ssl_expired(df)
+    df = encode_boolean_sentinels(df)
 
     artifacts = {"sentinel_value": SENTINEL, "frequency_encoding": {}, "ssl_issuer_top_values": []}
 
