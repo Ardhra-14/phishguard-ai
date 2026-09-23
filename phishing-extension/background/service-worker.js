@@ -438,7 +438,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'MANUAL_SCAN_URL': {
       const url = message.url;
-      checkUrlWithBackend(url, { apiUrl: currentSettings.apiUrl }).then((res) => {
+      checkUrlWithBackend(url, { apiUrl: currentSettings.apiUrl }).then(async (res) => {
+        if (res?.success) {
+          await scanCache.set(url, res, currentSettings.cacheTtlSeconds);
+          if (sender.tab?.id) {
+            tabScanStates.set(sender.tab.id, res);
+          }
+        }
         sendResponse(res);
       });
       return true;

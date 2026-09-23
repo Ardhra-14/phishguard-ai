@@ -53,6 +53,9 @@ class ScanResponse(BaseModel):
     closest_brand: str | None
     features: dict
     shap: list[ShapFeature]
+    ai_verified: bool = False
+    ai_verdict: str | None = None
+    ai_reason: str | None = None
     scan_duration_ms: int
 
 
@@ -151,12 +154,40 @@ async def scan_domain(
         # Stub response while ML modules are being built
         result = _stub_result(req.url)
 
+    from urllib.parse import urlparse
+    domain = urlparse(req.url).netloc or req.url
+
+    # ── High-Speed AI Confirmation Filter ────────────────────────────────────
+    # Triggered ONLY if the initial classifier flags PHISHING or SUSPICIOUS.
+    # If SAFE, AI is NOT invoked (0ms overhead).
+    ai_verified = False
+    ai_verdict = None
+    ai_reason = None
+
+    try:
+        from ml.ai_filter import ai_filter
+
+        if ai_filter.should_evaluate(result["verdict"], result["score"]):
+            ai_res = await ai_filter.verify_threat(
+                url=req.url,
+                domain=domain,
+                initial_score=result["score"],
+                initial_verdict=result["verdict"],
+                closest_brand=result.get("closest_brand"),
+                category=result.get("category"),
+            )
+            ai_verified = ai_res.get("ai_verified", True)
+            ai_verdict = ai_res.get("ai_verdict")
+            ai_reason = ai_res.get("ai_reason")
+            result["verdict"] = ai_res.get("verdict", result["verdict"])
+            result["score"] = ai_res.get("score", result["score"])
+    except Exception as e:
+        print(f"[AIFilter] Error: {e}")
+
     duration_ms = int(time.time() * 1000) - start_ms
 
     # Build response dict
     import uuid
-    from urllib.parse import urlparse
-    domain = urlparse(req.url).netloc or req.url
 
     response_data = {
         "scan_id": str(uuid.uuid4()),
@@ -174,6 +205,9 @@ async def scan_domain(
         "closest_brand": result.get("closest_brand"),
         "features": result.get("features", {}),
         "shap": result.get("shap", []),
+        "ai_verified": ai_verified,
+        "ai_verdict": ai_verdict,
+        "ai_reason": ai_reason,
         "scan_duration_ms": duration_ms,
     }
 
