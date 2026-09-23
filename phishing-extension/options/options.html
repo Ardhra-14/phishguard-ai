@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhishGuard AI - Settings</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="../icons/icon48.png" alt="PhishGuard" class="brand-logo">
+        <div>
+          <h2>PhishGuard AI</h2>
+          <span>Enterprise Security</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a href="#general" class="nav-item active">General & Engine</a>
+        <a href="#endpoints" class="nav-item">API & Integration</a>
+        <a href="#allowlist" class="nav-item">Allowlist & Rules</a>
+        <a href="#storage" class="nav-item">Cache & Data</a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="version">Extension v1.0.0 (MV3)</div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <header class="main-header">
+        <h1>Configuration & Security Preferences</h1>
+        <p>Manage background URL scanning, machine learning API endpoints, and site bypass policies.</p>
+      </header>
+
+      <!-- Toast Notification -->
+      <div id="toast" class="toast hidden">Settings saved successfully!</div>
+
+      <form id="settings-form">
+        <!-- Section: General -->
+        <section id="general" class="settings-section">
+          <h2 class="section-title">General Protection</h2>
+
+          <div class="form-group toggle-group">
+            <div>
+              <label class="form-label" for="opt-enabled">Enable Real-Time Protection</label>
+              <div class="form-desc">Inspect all top-level navigations against PhishGuard AI detection engine.</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="opt-enabled">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group toggle-group">
+            <div>
+              <label class="form-label" for="opt-localhost">Inspect Localhost & Development URLs</label>
+              <div class="form-desc">Enable scanning for 127.0.0.1, localhost, and local dev ports (default: OFF).</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="opt-localhost">
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opt-failsafe">Fail-Safe Behavior (When Backend Offline)</label>
+            <div class="form-desc">What should happen if the phishing detection API cannot be reached or times out:</div>
+            <select id="opt-failsafe" class="form-select">
+              <option value="warn">Warn & Allow User Decision (Recommended)</option>
+              <option value="allow">Permissive (Silently allow navigation)</option>
+              <option value="block">Strict High-Security (Block until verified)</option>
+            </select>
+          </div>
+        </section>
+
+        <!-- Section: API & Endpoints -->
+        <section id="endpoints" class="settings-section">
+          <h2 class="section-title">Backend API & Website Integration</h2>
+
+          <div class="form-group">
+            <label class="form-label" for="opt-api-url">Phishing Detection API URL</label>
+            <div class="form-desc">The POST endpoint where URLs are sent for ML feature analysis and scoring.</div>
+            <div class="input-with-button">
+              <input type="text" id="opt-api-url" class="form-input" placeholder="http://localhost:8000/api/v1/scan" required>
+              <button type="button" id="btn-test-api" class="btn btn-secondary">Test Connection</button>
+            </div>
+            <div id="api-status-msg" class="api-feedback"></div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opt-risk-url">Website Risk-Score / Warning Page URL</label>
+            <div class="form-desc">Where the user is redirected upon detecting a phishing or suspicious website.</div>
+            <input type="text" id="opt-risk-url" class="form-input" placeholder="http://localhost:5173/risk-score" required>
+            <div class="form-hint">Tip: Redirect loops are automatically prevented for this website and the API host.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="opt-cache-ttl">Scan Cache Lifetime (Seconds)</label>
+            <div class="form-desc">How long a safe or suspicious classification result is cached before re-querying the API.</div>
+            <input type="number" id="opt-cache-ttl" class="form-input" min="60" max="86400" step="60" value="1800">
+          </div>
+        </section>
+
+        <!-- Section: Allowlist & Blocklist -->
+        <section id="allowlist" class="settings-section">
+          <h2 class="section-title">Allowlist & Blocklist Management</h2>
+
+          <div class="form-group">
+            <label class="form-label">Allowed Domains (One per line)</label>
+            <div class="form-desc">Domains listed here will completely bypass scanning (supports wildcards, e.g. <code>*.google.com</code>).</div>
+            <textarea id="opt-allowlist" class="form-textarea" rows="4" placeholder="google.com&#10;*.github.com"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Custom Blocked Domains (One per line)</label>
+            <div class="form-desc">Domains listed here will always be blocked and redirected to the warning screen immediately.</div>
+            <textarea id="opt-blocklist" class="form-textarea" rows="3" placeholder="malicious-sample.com&#10;bad-tracker.net"></textarea>
+          </div>
+        </section>
+
+        <!-- Section: Cache & Stats -->
+        <section id="storage" class="settings-section">
+          <h2 class="section-title">Cache Maintenance & History</h2>
+
+          <div class="form-group">
+            <div class="data-actions">
+              <button type="button" id="btn-clear-cache" class="btn btn-outline">Clear Scan Cache</button>
+              <button type="button" id="btn-reset-stats" class="btn btn-outline text-danger">Reset Threat Statistics</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Bottom Form Controls -->
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="button" id="btn-reset-defaults" class="btn btn-secondary">Reset to Defaults</button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <script src="options.js" type="module"></script>
+</body>
+</html>

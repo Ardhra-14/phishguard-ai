@@ -114,6 +114,7 @@ async def _persist_scan(result_data: dict, db: AsyncSession):
 # ── Scan endpoint ─────────────────────────────────────────────────────────────
 
 @router.post("/scan", response_model=ScanResponse, summary="Analyse a domain for phishing signals")
+@router.post("/check-url", response_model=ScanResponse, summary="Analyse a domain for phishing signals (alias)")
 async def scan_domain(
     req: ScanRequest,
     background_tasks: BackgroundTasks,

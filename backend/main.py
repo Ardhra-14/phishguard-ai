@@ -12,13 +12,13 @@ from core.config import settings
 async def lifespan(app: FastAPI):
     """Startup and shutdown events."""
     # Startup
-    print("🚀 PhishGuard AI starting up...")
+    print("[PhishGuard AI] Starting up...")
     await init_db()
-    print("✅ Database initialized")
+    print("[PhishGuard AI] Database initialized")
     # ML model is loaded lazily on first scan request
     yield
     # Shutdown
-    print("🛑 PhishGuard AI shutting down...")
+    print("[PhishGuard AI] Shutting down...")
 
 
 app = FastAPI(
@@ -28,10 +28,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow the React frontend origin
+# CORS — allow the React frontend origin and Chrome Extensions
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
+    allow_origin_regex=r"^(chrome-extension://.*|http://localhost(:\d+)?|http://127\.0\.0\.1(:\d+)?)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -41,6 +42,7 @@ register_middlewares(app)
 
 # Routers
 app.include_router(scan.router, prefix="/api/v1", tags=["scan"])
+app.include_router(scan.router, prefix="/api", tags=["scan-compat"])
 app.include_router(feed.router, prefix="/api/v1", tags=["feed"])
 app.include_router(report.router, prefix="/api/v1", tags=["report"])
 

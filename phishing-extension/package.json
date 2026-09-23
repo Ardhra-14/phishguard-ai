@@ -1,0 +1,9 @@
+{
+  "name": "phishguard-ai-extension",
+  "version": "1.0.0",
+  "description": "Chrome Manifest V3 Extension for PhishGuard AI",
+  "type": "module",
+  "scripts": {
+    "test": "node test-extension.mjs"
+  }
+}
