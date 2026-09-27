@@ -1,5 +1,5 @@
 {
-  "saved_at_utc": "2026-09-11T03:56:16.406886+00:00",
+  "saved_at_utc": "2026-09-27T05:50:39.235299+00:00",
   "model_type": "VotingClassifier (RandomForestClassifier + XGBClassifier, soft voting)",
   "phase": "3.4",
   "ensemble_adoption_note": "Adopted this session after the path_length trailing-slash fix made the ensemble beat every individual model simultaneously on accuracy/precision/f1 -- see phase3_4_ensemble_results.md and phase3_5_path_length_check.md. Prior cycles kept tuned XGBoost alone since the ensemble tied it exactly.",
@@ -76,33 +76,33 @@
     "category_freq",
     "ssl_issuer_google_trust_services",
     "ssl_issuer_let's_encrypt",
-    "ssl_issuer_digicert_inc",
     "ssl_issuer_amazon",
+    "ssl_issuer_digicert_inc",
     "ssl_issuer_globalsign_nv_sa",
     "ssl_issuer_sectigo_limited",
     "ssl_issuer_godaddycom_inc",
     "ssl_issuer_godaddycom",
     "ssl_issuer_hellenic_academic_and_research_institutions_ca",
-    "ssl_issuer_microsoft_corporation",
+    "ssl_issuer_certainly",
     "ssl_issuer_other",
     "ssl_issuer_missing"
   ],
   "n_features": 61,
   "sanity_check_metrics": {
-    "accuracy": 0.9711340206185567,
-    "precision": 0.9828326180257511,
-    "recall": 0.9581589958158996,
-    "f1": 0.9703389830508474,
-    "roc_auc": 0.9937578664489574
+    "accuracy": 0.9704830053667263,
+    "precision": 0.9769900497512438,
+    "recall": 0.9429771908763506,
+    "f1": 0.9596823457544288,
+    "roc_auc": 0.9923484361670541
   },
   "sanity_check_confusion_matrix": [
     [
-      484,
-      8
+      2769,
+      37
     ],
     [
-      20,
-      458
+      95,
+      1571
     ]
   ],
   "requires_for_inference": "data/preprocessing_artifacts.json (frequency maps + ssl_issuer top-10 list from Phase 3.2) to encode a single incoming URL identically to how this training data was encoded."

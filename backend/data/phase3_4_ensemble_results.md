@@ -4,14 +4,14 @@
 
 | Metric | RF (3.3) | XGB untuned (3.4-1) | XGB tuned (3.4-3) | Ensemble (3.4-5) |
 |---|---|---|---|---|
-| accuracy | 0.9537 | 0.9538 | 0.9550 | 0.9711 |
-| precision | 0.9504 | 0.9481 | 0.9550 | 0.9828 |
-| recall | 0.9575 | 0.9600 | 0.9550 | 0.9582 |
-| f1 | 0.9539 | 0.9540 | 0.9550 | 0.9703 |
-| roc_auc | 0.9888 | 0.9917 | 0.9896 | 0.9938 |
+| accuracy | 0.9537 | 0.9538 | 0.9550 | 0.9705 |
+| precision | 0.9504 | 0.9481 | 0.9550 | 0.9770 |
+| recall | 0.9575 | 0.9600 | 0.9550 | 0.9430 |
+| f1 | 0.9539 | 0.9540 | 0.9550 | 0.9597 |
+| roc_auc | 0.9888 | 0.9917 | 0.9896 | 0.9923 |
 
-Confusion matrix (ensemble): `[[484, 8], [20, 458]]`
+Confusion matrix (ensemble): `[[2769, 37], [95, 1571]]`
 
-**Best F1 of the four: Ensemble (0.9703)**
+**Best F1 of the four: Ensemble (0.9597)**
 
 Decision rule per handoff: only adopt the ensemble for Phase 3.6 if it meaningfully beats the better of RF/tuned-XGB alone. A tie or marginal gain on an 800-row test set is not meaningful -- prefer the simpler single model (tuned XGBoost) in that case.
