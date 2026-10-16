@@ -1,4 +1,4 @@
-﻿"""
+"""
 Screenshot capture - Phase 4 (Visual Detection).
 
 Uses Playwright (headless Chromium) to load a URL and capture both a
@@ -30,7 +30,7 @@ async def capture_screenshot(url: str) -> dict:
         url = "https://" + url
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
+        browser = await p.chromium.launch(headless=True, executable_path=r"C:\Users\SANJANA V S\AppData\Local\ms-playwright\chromium-1243\chrome-win64\chrome.exe")
         try:
             context = await browser.new_context(
                 viewport=VIEWPORT,

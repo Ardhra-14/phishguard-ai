@@ -328,6 +328,15 @@ class Predictor:
             score = min(score + bump, 100)
         return score
 
+    @staticmethod
+    def _apply_brand_typosquat_adjustment(score: int, features: dict) -> int:
+        """Add a small risk bump for a confirmed brand typosquat."""
+        typosquat_count = features.get("brand_typosquat_hit_count", 0)
+
+        if typosquat_count and typosquat_count > 0:
+            score = min(score + 10, 100)
+
+        return score
     def _flatten_shap_for_schema(self, explanation: dict) -> list[dict]:
         """Only the RandomForest component is surfaced (decision #7).
         Matches scan.py's ShapFeature schema: feature, label, value,
@@ -355,18 +364,29 @@ class Predictor:
 
         visual_similarity_score = features.get("visual_similarity_score")
         has_login_form = features.get("dom_credential_form_detected")
-        score = self._apply_visual_adjustment(score, visual_similarity_score, has_login_form)
-        # Re-derive verdict in case the visual bump pushed the score across
-        # a threshold boundary.
+
+        score = self._apply_visual_adjustment(
+            score,
+            visual_similarity_score,
+            has_login_form,
+        )
+
+        score = self._apply_brand_typosquat_adjustment(score, features)
+
         if score >= PHISHING_THRESHOLD:
             verdict = "PHISHING"
         elif score >= SUSPICIOUS_THRESHOLD:
             verdict = "SUSPICIOUS"
+        else:
+            verdict = "SAFE"
 
         shap_list = []
         if self.rf_explainer is not None and self.xgb_explainer is not None:
             explanation = explain_single_row(
-                row_df, self.rf_explainer, self.xgb_explainer, self.feature_order
+                row_df,
+                self.rf_explainer,
+                self.xgb_explainer,
+                self.feature_order,
             )
             shap_list = self._flatten_shap_for_schema(explanation)
 
@@ -374,19 +394,22 @@ class Predictor:
             "score": score,
             "verdict": verdict,
             "confidence": confidence,
-            "category": features.get("category"),  # decision #6: now sourced from brand_detector.py, see docstring
+            "category": features.get("category"),
             "is_zero_day": bool(features.get("whois_recently_registered", False)),
             "domain_age_days": features.get("whois_domain_age_days"),
             "registrar": features.get("whois_registrar"),
             "ssl_issuer": features.get("ssl_issuer"),
             "visual_similarity": visual_similarity_score,
-            "closest_brand": features.get("closest_brand"),  # decision #5: now threaded through from pipeline.py
+            "closest_brand": features.get("closest_brand"),
             "features": features,
             "shap": shap_list,
         }
-
 
 # Loaded once, at import time - scan.py must import this singleton, not
 # the Predictor class, or it defeats the entire point (see Phase 3.6
 # summary section 2 - this was a real bug found and fixed in scan.py).
 predictor = Predictor()
+
+
+
+

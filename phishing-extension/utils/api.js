@@ -6,7 +6,7 @@
 import { extractDomain } from './url-utils.js';
 
 export const DEFAULT_API_URL = 'http://localhost:8000/api/v1/scan';
-export const DEFAULT_TIMEOUT_MS = 6000;
+export const DEFAULT_TIMEOUT_MS = 30000;
 
 /**
  * Normalizes backend response from either PhishGuard AI format or generic format
