@@ -27,9 +27,9 @@ async def init_db():
         async with _engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         _db_available = True
-        print("✅ DB tables ready")
+        print("[DB] Tables ready")
     except Exception as e:
-        print(f"⚠️ DB not available: {type(e).__name__}: {e}")
+        print(f"[DB] Database not available (running in memory/stateless mode): {type(e).__name__}: {e}")
 
 
 async def get_db():

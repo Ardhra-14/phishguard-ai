@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security Warning - PhishGuard AI</title>
+  <link rel="stylesheet" href="warning.css">
+</head>
+<body>
+  <div class="warning-wrapper">
+    <div class="warning-card">
+      <div class="warning-header">
+        <div class="icon-pulse">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="warning-title">Deceptive Website Ahead</h1>
+          <p class="warning-subtitle">PhishGuard AI intercepted a potentially malicious or phishing site.</p>
+        </div>
+      </div>
+
+      <div class="meta-banner">
+        <div class="meta-item">
+          <span class="meta-label">RISK SCORE</span>
+          <span id="warn-score" class="meta-val text-danger">-- / 100</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">VERDICT</span>
+          <span id="warn-verdict" class="meta-val badge-phishing">PHISHING</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">CATEGORY</span>
+          <span id="warn-category" class="meta-val capitalize">Banking / Credential</span>
+        </div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-title">REQUESTED URL</div>
+        <div id="warn-target-url" class="url-display">https://...</div>
+      </div>
+
+      <div class="section-box">
+        <div class="section-title">THREAT SIGNALS DETECTED</div>
+        <ul id="warn-reasons" class="reasons-list">
+          <li>Heuristic machine learning models identified strong phishing indicators.</li>
+        </ul>
+      </div>
+
+      <div class="warning-actions">
+        <button id="btn-go-back" class="btn btn-safe">Go Back to Safety</button>
+        <button id="btn-continue-anyway" class="btn btn-ghost">Continue Anyway (Unsafe)</button>
+      </div>
+
+      <div class="footer-note">
+        Protected by PhishGuard AI Real-Time Neural Detection Engine
+      </div>
+    </div>
+  </div>
+
+  <script src="warning.js" type="module"></script>
+</body>
+</html>

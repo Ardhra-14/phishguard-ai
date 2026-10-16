@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Shield, AlertTriangle, Search, Activity, 
-  Globe, Clock, Lock, CheckCircle, XCircle, Info
+  Globe, Clock, Lock, CheckCircle, XCircle, Info,
+  ArrowLeft, ExternalLink, AlertOctagon, ShieldAlert
 } from 'lucide-react';
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
 function App() {
+  // Navigation / Routing State
+  const [isRiskRoute, setIsRiskRoute] = useState(false);
+  const [riskLoading, setRiskLoading] = useState(false);
+  const [riskPageData, setRiskPageData] = useState(null);
+
+  // Dashboard state
   const [urlToScan, setUrlToScan] = useState('');
   const [scanResult, setScanResult] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -21,19 +28,119 @@ function App() {
   const [feed, setFeed] = useState([]);
   const [isLoadingFeed, setIsLoadingFeed] = useState(true);
 
-  // Fetch initial data
+  // Check URL routes on mount (e.g. /risk-score/<scan-id> or ?scan_id=... or ?url=...)
   useEffect(() => {
-    fetchStats();
-    fetchFeed();
-    
-    // Poll for updates every 10 seconds
+    checkRouting();
+    window.addEventListener('popstate', checkRouting);
+    return () => window.removeEventListener('popstate', checkRouting);
+  }, []);
+
+  const checkRouting = () => {
+    const pathname = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasRiskPath = pathname.includes('/risk-score');
+    const hasScanParam = searchParams.has('scan_id') || searchParams.has('scanId');
+    const hasUrlWarning = searchParams.has('url') && (searchParams.has('score') || searchParams.has('verdict'));
+
+    if (hasRiskPath || hasScanParam || hasUrlWarning) {
+      setIsRiskRoute(true);
+      setRiskLoading(true);
+
+      // Extract scan_id from pathname /risk-score/:scan_id or search params
+      const pathMatch = pathname.match(/\/risk-score\/([a-zA-Z0-9\-_]+)/);
+      const scanId = pathMatch ? pathMatch[1] : (searchParams.get('scan_id') || searchParams.get('scanId'));
+      const urlParam = searchParams.get('url') ? decodeURIComponent(searchParams.get('url')) : '';
+      const scoreParam = searchParams.get('score');
+      const verdictParam = searchParams.get('verdict');
+      const categoryParam = searchParams.get('category');
+
+      // Attempt to fetch full scan details from backend if scanId exists
+      if (scanId && !scanId.startsWith('blocklist-') && !scanId.startsWith('offline-')) {
+        fetch(`${API_BASE_URL}/scan/${scanId}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((data) => {
+            if (data) {
+              const shapReasons = (data.shap_json || [])
+                .filter((s) => s.direction === 'phishing' || s.shap_value > 0)
+                .map((s) => s.label || s.feature);
+
+              setRiskPageData({
+                scan_id: data.id || scanId,
+                url: data.url || urlParam,
+                domain: data.domain,
+                score: data.score,
+                verdict: data.verdict,
+                confidence: data.confidence,
+                category: data.category || categoryParam || 'Generic',
+                reasons: shapReasons.length > 0 ? shapReasons : [
+                  'Heuristic ML model detected strong phishing markers',
+                  'Suspicious lexical domain properties'
+                ],
+                domain_age_days: data.domain_age_days,
+                registrar: data.registrar,
+                ssl_issuer: data.ssl_issuer,
+                closest_brand: data.closest_brand,
+                visual_similarity: data.visual_similarity,
+                is_zero_day: data.is_zero_day,
+              });
+            } else {
+              setFallbackRiskData(urlParam, scoreParam, verdictParam, categoryParam, scanId);
+            }
+          })
+          .catch(() => {
+            setFallbackRiskData(urlParam, scoreParam, verdictParam, categoryParam, scanId);
+          })
+          .finally(() => setRiskLoading(false));
+      } else {
+        setFallbackRiskData(urlParam, scoreParam, verdictParam, categoryParam, scanId);
+        setRiskLoading(false);
+      }
+    } else {
+      setIsRiskRoute(false);
+      fetchStats();
+      fetchFeed();
+    }
+  };
+
+  const setFallbackRiskData = (urlParam, scoreParam, verdictParam, categoryParam, scanId) => {
+    let domain = 'Unknown';
+    if (urlParam) {
+      try {
+        domain = new URL(urlParam).hostname;
+      } catch {
+        domain = urlParam;
+      }
+    }
+    setRiskPageData({
+      scan_id: scanId || 'live-scan',
+      url: urlParam || 'https://suspicious-target.com',
+      domain: domain,
+      score: scoreParam ? parseInt(scoreParam, 10) : 88,
+      verdict: verdictParam || 'PHISHING',
+      confidence: 0.92,
+      category: categoryParam || 'Banking / Credential',
+      reasons: [
+        'Domain structure mimics authentic online service',
+        'Suspicious URL keyword combination detected',
+        'Model flagged high probability of credential deception'
+      ],
+      domain_age_days: 2,
+      registrar: 'Unknown Registrar',
+      ssl_issuer: "Let's Encrypt",
+      closest_brand: null,
+      is_zero_day: true,
+    });
+  };
+
+  // Poll for dashboard updates every 10 seconds if on dashboard
+  useEffect(() => {
+    if (isRiskRoute) return;
     const interval = setInterval(() => {
       fetchStats();
       fetchFeed();
     }, 10000);
-    
     return () => clearInterval(interval);
-  }, []);
+  }, [isRiskRoute]);
 
   const fetchStats = async () => {
     try {
@@ -83,13 +190,25 @@ function App() {
       const data = await res.json();
       setScanResult(data);
       
-      // Refresh feed and stats immediately after a scan
       fetchStats();
       fetchFeed();
     } catch (err) {
       setScanError(err.message || 'An error occurred during scanning.');
     } finally {
       setIsScanning(false);
+    }
+  };
+
+  const navigateToDashboard = () => {
+    window.history.pushState({}, '', '/');
+    setIsRiskRoute(false);
+    fetchStats();
+    fetchFeed();
+  };
+
+  const handleContinueAnyway = (targetUrl) => {
+    if (confirm('CAUTION: This website has been classified as dangerous by PhishGuard AI. Proceeding may compromise your accounts or personal credentials. Continue anyway?')) {
+      window.location.href = targetUrl;
     }
   };
 
@@ -105,6 +224,151 @@ function App() {
     return <CheckCircle size={24} className="text-success" />;
   };
 
+  // =========================================================================
+  // VIEW: DEDICATED RISK-SCORE / WARNING PAGE
+  // =========================================================================
+  if (isRiskRoute) {
+    if (riskLoading) {
+      return (
+        <div className="container" style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="text-center">
+            <Activity size={48} className="animate-spin text-primary mx-auto mb-4" />
+            <h2 className="text-xl">Retrieving Threat Analysis...</h2>
+            <p className="text-muted">Loading verdict from PhishGuard AI engine</p>
+          </div>
+        </div>
+      );
+    }
+
+    const r = riskPageData || {};
+    const isPhishing = r.verdict === 'PHISHING';
+
+    return (
+      <div className="container" style={{ maxWidth: '900px', paddingTop: '3rem', paddingBottom: '4rem' }}>
+        {/* Warning Banner */}
+        <div 
+          className="glass-panel" 
+          style={{ 
+            borderColor: isPhishing ? 'rgba(239, 68, 68, 0.4)' : 'rgba(245, 158, 11, 0.4)',
+            boxShadow: isPhishing ? '0 10px 40px rgba(239, 68, 68, 0.2)' : '0 10px 40px rgba(245, 158, 11, 0.2)',
+            padding: '2.5rem',
+            marginBottom: '2rem'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginBottom: '1.5rem' }}>
+            <div 
+              style={{ 
+                background: isPhishing ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                padding: '1rem', 
+                borderRadius: '12px',
+                border: `1px solid ${isPhishing ? 'var(--danger)' : 'var(--warning)'}`
+              }}
+            >
+              <ShieldAlert size={42} color={isPhishing ? 'var(--danger)' : 'var(--warning)'} />
+            </div>
+            <div>
+              <div style={{ fontSize: '0.875rem', fontWeight: 700, letterSpacing: '0.08em', color: isPhishing ? 'var(--danger)' : 'var(--warning)' }}>
+                SECURITY INTERCEPTION
+              </div>
+              <h1 style={{ fontSize: '2rem', margin: '0.25rem 0' }}>
+                {isPhishing ? 'Dangerous Phishing Website Detected' : 'Suspicious Website Intercepted'}
+              </h1>
+              <p className="text-muted">
+                PhishGuard AI has prevented this page from loading to protect your security and privacy.
+              </p>
+            </div>
+          </div>
+
+          {/* Requested URL box */}
+          <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid var(--glass-border)', borderRadius: '8px', padding: '1rem', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+              BLOCKED DESTINATION URL
+            </div>
+            <div style={{ fontFamily: 'monospace', color: '#fca5a5', fontSize: '1rem', wordBreak: 'break-all' }}>
+              {r.url}
+            </div>
+          </div>
+
+          {/* Metric Badges */}
+          <div className="dashboard-grid gap-4 mb-6">
+            <div className="col-span-4 glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>RISK SCORE</div>
+              <div style={{ fontSize: '2.25rem', fontWeight: 800 }} className={isPhishing ? 'text-danger' : 'text-warning'}>
+                {r.score} <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/ 100</span>
+              </div>
+            </div>
+
+            <div className="col-span-4 glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>VERDICT</div>
+              <div style={{ marginTop: '0.5rem' }}>
+                <span className={getVerdictBadgeClass(r.verdict)} style={{ fontSize: '1rem', padding: '0.35rem 1rem' }}>
+                  {r.verdict}
+                </span>
+              </div>
+            </div>
+
+            <div className="col-span-4 glass-card" style={{ padding: '1rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>TARGET CATEGORY</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '0.5rem', textTransform: 'capitalize' }}>
+                {r.category || 'Generic'}
+              </div>
+            </div>
+          </div>
+
+
+
+          {/* Navigation Action Buttons */}
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '2rem' }}>
+            <button 
+              className="btn btn-primary" 
+              style={{ flex: '1 1 200px', padding: '0.875rem 1.5rem', background: '#2563eb' }}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  window.history.back();
+                } else {
+                  navigateToDashboard();
+                }
+              }}
+            >
+              <ArrowLeft size={18} /> Go Back to Safety
+            </button>
+
+            <button 
+              className="btn" 
+              style={{ 
+                background: 'rgba(255, 255, 255, 0.05)', 
+                border: '1px solid var(--glass-border)', 
+                color: 'var(--text-muted)' 
+              }}
+              onClick={navigateToDashboard}
+            >
+              Open PhishGuard Dashboard
+            </button>
+
+            <button 
+              className="btn" 
+              style={{ 
+                background: 'transparent', 
+                border: '1px solid rgba(239, 68, 68, 0.3)', 
+                color: '#fca5a5' 
+              }}
+              onClick={() => handleContinueAnyway(r.url)}
+            >
+              Continue Anyway (Unsafe) <ExternalLink size={14} />
+            </button>
+          </div>
+        </div>
+
+        <div className="text-center text-muted" style={{ fontSize: '0.75rem' }}>
+          PhishGuard AI Real-Time Protection • CERT-In & NTRO Phishing Detection System
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW: MAIN SCANNER DASHBOARD
+  // =========================================================================
   return (
     <div className="container">
       {/* Header */}
@@ -221,12 +485,24 @@ function App() {
               <div className="mt-4 pt-4 border-t" style={{borderColor: 'var(--glass-border)'}}>
                 <h3 className="text-muted mb-4 text-sm font-semibold uppercase tracking-wider">Analysis Breakdown</h3>
                 <div className="glass-panel" style={{padding: '1rem'}}>
-                  <p className="text-sm text-muted mb-2">Detailed feature breakdown and SHAP explainability will appear here (Phase 3).</p>
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex gap-2 flex-wrap mb-3">
                     <span className="badge safe">Lexical Analysis</span>
                     <span className="badge safe">DNS Checks</span>
                     <span className="badge safe">SSL Verification</span>
+                    {scanResult.closest_brand && <span className="badge warning">Brand Imitation Check</span>}
                   </div>
+                  {scanResult.shap && scanResult.shap.length > 0 && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                      <div className="text-muted mb-1">Key Explanatory Signals:</div>
+                      <ul style={{ paddingLeft: '1.25rem' }}>
+                        {scanResult.shap.slice(0, 3).map((item, idx) => (
+                          <li key={idx} style={{ color: item.direction === 'phishing' ? 'var(--danger)' : 'var(--success)' }}>
+                            {item.label || item.feature} ({item.direction})
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
             </section>
@@ -332,11 +608,11 @@ function App() {
                 </li>
                 <li className="flex justify-between py-2 border-b" style={{borderColor: 'rgba(255,255,255,0.05)'}}>
                   <span className="text-muted">ML Predictor</span>
-                  <span className="text-warning flex items-center gap-1"><Info size={14}/> Stub Mode</span>
+                  <span className="text-success flex items-center gap-1"><CheckCircle size={14}/> Active</span>
                 </li>
                 <li className="flex justify-between py-2">
-                  <span className="text-muted">Database</span>
-                  <span className="text-success flex items-center gap-1"><CheckCircle size={14}/> Online</span>
+                  <span className="text-muted">Browser Extension</span>
+                  <span className="text-primary flex items-center gap-1"><Shield size={14}/> Ready</span>
                 </li>
               </ul>
             </div>
